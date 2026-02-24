@@ -4,6 +4,12 @@ Monorepo for the Alquist Insight platform.
 
 ## Local Docker Deployment
 
+Prerequisites:
+
+- Docker with docker-compose plugin installed.
+- Linux-based system able to run bash scripts.
+- Nvidia GPU & 120 GB or more RAM for locally run embedding/generation models.
+
 Clone the repository:
 
 ```shell
