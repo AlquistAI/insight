@@ -1,0 +1,48 @@
+# This Pipfile contains dependencies from all subprojects.
+# It should be used for convenience only during development.
+# During deployment, each subproject uses its own dependencies.
+
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[requires]
+python_version = "3.11"
+
+[packages]
+azure-identity = "*"
+azure-storage-blob = "*"
+bs4 = "*"
+cachetools = "*"
+common = { editable = true, extras = ["es", "jwt", "mongo", "openai"], path = "common" }
+elasticsearch = "==8.17.2"
+fastapi = "*"
+gevent = "*"
+httpx = "*"
+langchain = "*"
+langchain-community = "*"
+langchain-openai = "*"
+langchain-text-splitters = "*"
+minio = "*"
+numpy = "*"
+openai = "*"
+openpyxl = "*"
+pydantic = "*"
+pymongo = "*"
+pymupdf = "*"
+python-dateutil = "*"
+python-docx = "*"
+python-multipart = "*"
+python-pptx = "*"
+requests = "*"
+tritonclient = { extras = ["http"], version = "*" }
+uvicorn = { extras = ["standard"], version = "*" }
+
+[dev-packages]
+einops = "*"
+scikit-learn = "*"
+sentence-transformers = "*"
+torch = "*"
+tqdm = "*"
+transformers = "*"

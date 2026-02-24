@@ -1,0 +1,25 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[requires]
+python_version = "3.11"
+
+[packages]
+azure-identity = "*"
+azure-storage-blob = "*"
+bs4 = "*"
+cachetools = "*"
+common = { extras = ["jwt", "mongo"], path = "../common" }
+fastapi = "*"
+httpx = "*"
+minio = "*"
+pydantic = "*"
+pymongo = "*"
+python-dateutil = "*"
+python-multipart = "*"
+requests = "*"
+uvicorn = { extras = ["standard"], version = "*" }
+
+[dev-packages]

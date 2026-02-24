@@ -1,0 +1,45 @@
+# ToDo: Add the common module to the components in a smarter way and use component-specific build contexts.
+# Options how this could be fixed:
+#   - Upload the common module to the GitLab package registry and install from there.
+#   - Build a common base image with the common module preinstalled.
+#   - Use Docker BuildKit in CI instead of Kaniko and use the "build-context" flag (cf. https://docs.docker.com/build/concepts/context/#named-contexts).
+
+# Ignore everything
+*
+
+# Common package
+!/common/
+/common/*
+!/common/common/
+!/common/pyproject.toml
+
+# Kronos
+!/kronos/
+/kronos/*
+!/kronos/kronos/
+!/kronos/Pipfile
+!/kronos/Pipfile.lock
+!/kronos/run.py
+!/kronos/start.sh
+
+# Maestro
+!/maestro/
+/maestro/*
+!/maestro/maestro/
+!/maestro/Pipfile
+!/maestro/Pipfile.lock
+!/maestro/run.py
+!/maestro/start.sh
+
+# Ragnarok
+!/ragnarok/
+/ragnarok/*
+!/ragnarok/ragnarok/
+!/ragnarok/Pipfile
+!/ragnarok/Pipfile.lock
+!/ragnarok/run.py
+!/ragnarok/start.sh
+
+# Ignore unnecessary files inside allowed directories
+**/__pycache__/
+**/.DS_Store

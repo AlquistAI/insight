@@ -1,0 +1,62 @@
+{
+  "dialogue_id": 0,
+  "dialogue_name": "default_cs",
+  "dialogue_author": "ella.brichova@cvut.cz",
+  "dialogue_description": "Default dialogue implementing simple question-answering from the uploaded knowledge base.",
+  "language": "cs-CZ",
+  "editor_active": true,
+  "editor_initial_file": "<ul><li>Nejste aktuálně připojeni k žádnému konkrétnímu systému.</li><li>Nemám přímý přístup k internetu nebo vnějším databázím.</li><li>Mám přístup pouze k poskytnutému kontextu a k obecným informacím do října 2023.</li><li>Nemohu tedy zpracovávat informace mimo ty v poskytnutém kontextu nebo znalosti po říjnu 2023.</li></ul>",
+  "commands": [
+    {
+      "name": "help",
+      "state": 2
+    },
+    {
+      "name": "rag-mode",
+      "state": 3
+    },
+    {
+      "name": "top-n-mode",
+      "state": 4
+    }
+  ],
+  "states": [
+    {
+      "state_id": 1,
+      "command": {
+        "type": "image",
+        "text": "digital_theme.png",
+        "link": "strada",
+        "next_state": 2
+      }
+    },
+    {
+      "state_id": 2,
+      "command": {
+        "type": "display_text",
+        "text": "## Vítejte v aplikaci Alquist Insight!\n- Po otevření aplikace klikněte na 'hamburger menu' vlevo nahoře a vyberte soubory, ve kterých se bude vyhledávat.\n- Chatbot pro vás vygeneruje odpověď, přičemž v pravé části obrazovky se současně zobrazí stránka PDF souboru, ze které čerpal.\n- Pod odpovědí naleznete tlačítka odkazující na související stránky dokumentů, ze kterých chatbot vycházel.\n- V zobrazeném dokumentu můžete ověřit správnost odpovědi nebo pomocí lupy dohledat další informace. **DÚLEŽITÉ - Chatbot se může mýlit, vždy si ověřte správnost odpovědi ve zdrojových dokumentech!**\n- Pro hodnocení odpovědi klikněte na ikonu palce nahoru nebo dolů.",
+        "next_state": 3
+      }
+    },
+    {
+      "state_id": 3,
+      "command": {
+        "type": "get_rag",
+        "text": "Zadej dotaz",
+        "next_state": 3,
+        "streaming": true,
+        "top_n_buttons_enabled": true,
+        "top_n_count": 10
+      }
+    },
+    {
+      "state_id": 4,
+      "command": {
+        "type": "get_top_n",
+        "text": "Zadej dotaz",
+        "next_state": 4,
+        "top_n_count": 10
+      }
+    }
+  ]
+}

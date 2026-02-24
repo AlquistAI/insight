@@ -1,0 +1,138 @@
+{
+  "dialogue_id": 12345,
+  "dialogue_name": "test",
+  "dialogue_author": "jan.sedivy",
+  "dialogue_description": "form validation",
+  "states": [
+    {
+      "state_id": 1,
+      "command": {
+        "type": "image",
+        "text": "digital_theme.png",
+        "link": "strada",
+        "next_state": 111
+      }
+    },
+    {
+      "state_id": 111,
+      "command": {
+        "type": "get_projects",
+        "text": "",
+        "link": "strada",
+        "next_state": 2
+      }
+    },
+    {
+      "state_id": 2,
+      "command": {
+        "type": "display_text",
+        "text": "TST = Hello, let's start!",
+        "next_state": 3
+      }
+    },
+    {
+      "state_id": 3,
+      "command": {
+        "type": "display_text",
+        "text": "TST Execute this command",
+        "next_state": 4
+      }
+    },
+    {
+      "state_id": 4,
+      "command": {
+        "type": "buttons",
+        "buttons": [
+          {
+            "class": "btn btn-secondary",
+            "text": "OK",
+            "next_state": 22
+          },
+          {
+            "class": "btn btn-success",
+            "text": "Help",
+            "next_state": 44
+          },
+          {
+            "class": "btn btn-info",
+            "text": "Comment",
+            "next_state": 21
+          }
+        ]
+      }
+    },
+    {
+      "state_id": 21,
+      "command": {
+        "type": "display_text",
+        "text": "TST Pridej komentar",
+        "next_state": 10
+      }
+    },
+    {
+      "state_id": 10,
+      "command": {
+        "type": "get_text",
+        "text": "Enter text",
+        "next_state": 3
+      }
+    },
+    {
+      "state_id": 44,
+      "command": {
+        "type": "get_rag",
+        "text": "TST Ask any question",
+        "next_state": 22,
+        "streaming": true
+      }
+    },
+    {
+      "state_id": 22,
+      "command": {
+        "type": "display_text",
+        "text": "TST Execute the next command",
+        "next_state": 4
+      }
+    },
+    {
+      "state_id": 23,
+      "command": {
+        "type": "display_text",
+        "text": "You pressed cancel",
+        "next_state": 2
+      }
+    },
+    {
+      "state_id": 37,
+      "command": {
+        "type": "select_intent",
+        "alternate_sentences": [
+          {
+            "sentences": [
+              "I am ok",
+              "that is right",
+              "I agree"
+            ],
+            "next_state": 31
+          },
+          {
+            "sentences": [
+              "that's wrong",
+              "I don't agree",
+              "incorrect"
+            ],
+            "next_state": 32
+          }
+        ]
+      }
+    },
+    {
+      "state_id": 30,
+      "command": {
+        "type": "display_text",
+        "text": "Enter text",
+        "next_state": 24
+      }
+    }
+  ]
+}

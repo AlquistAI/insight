@@ -1,0 +1,305 @@
+### FIRST RUN INSTRUCTIONS ###
+#
+# 1. Set required volume mount permissions:
+#   >>> mkdir -p data/{elasticsearch,keycloak,maestro/frontend,ragnarok/models}
+#   >>> sudo chown -R 1000:1000 data/{elasticsearch,keycloak}
+#   >>> sudo chown -R 999:999 data/{maestro,ragnarok}
+#
+# 2. Log in to the GitLab container registry (or use locally built internal images):
+#   >>> docker login registry.gitlab.com -u {GITLAB_USER} -p {GITLAB_PASSWORD}
+
+x-variables:
+  elasticsearch: &elasticsearch-image docker.elastic.co/elasticsearch/elasticsearch:8.17.3
+  keycloak: &keycloak-image           quay.io/keycloak/keycloak:26.0.7
+  minio: &minio-image                 quay.io/minio/minio:RELEASE.2025-07-23T15-54-02Z
+  mongo: &mongo-image                 mongo:8.0.10
+  postgres: &postgres-image           postgres:17.2
+  triton: &triton-image               nvcr.io/nvidia/tritonserver:24.07-py3
+  vllm: &vllm-image                   nvcr.io/nvidia/vllm:25.09-py3
+
+  kronos: &kronos-image     kronos:latest
+  maestro: &maestro-image   maestro:latest
+  ragnarok: &ragnarok-image ragnarok:latest
+
+  # kronos: &kronos-image     registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/kronos:latest
+  # maestro: &maestro-image   registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/maestro:latest
+  # ragnarok: &ragnarok-image registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/ragnarok:latest
+
+  vllm_embedding_model: &vllm-embedding-model   Qwen/Qwen3-Embedding-0.6B
+  vllm_generation_model: &vllm-generation-model Qwen/Qwen3-30B-A3B
+
+x-services:
+  elasticsearch: &elasticsearch-service
+    image: *elasticsearch-image
+    container_name: elasticsearch
+    restart: unless-stopped
+
+    environment:
+      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+      discovery.type: "single-node"
+      xpack.security.enabled: "false"
+      xpack.security.enrollment.enabled: "false"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health | grep '\"status\"'" ]
+      interval: 1m
+      retries: 2
+      start_period: 30s
+      timeout: 5s
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - ./data/elasticsearch:/usr/share/elasticsearch/data
+
+  keycloak: &keycloak-service
+    # ToDo: This image does not include any networking tools. Create a healthcheck that does not need them.
+    image: *keycloak-image
+    container_name: keycloak
+    restart: unless-stopped
+
+    command:
+      - start-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KEYCLOAK_ADMIN: "admin"
+      KEYCLOAK_ADMIN_PASSWORD: "admin123"
+      KC_DB: "postgres"
+      KC_DB_URL_HOST: "postgres"
+      KC_DB_URL_PORT: "5432"
+      KC_DB_URL_DATABASE: "keycloak"
+      KC_DB_USERNAME: "keycloak"
+      KC_DB_PASSWORD: "keycloak123"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data/keycloak:/opt/keycloak/data
+
+  minio: &minio-service
+    image: *minio-image
+    container_name: minio
+    restart: unless-stopped
+
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: "admin"
+      MINIO_ROOT_PASSWORD: "admin123"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1" ]
+      interval: 1m
+      retries: 2
+      start_period: 10s
+      timeout: 5s
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - ./data/minio:/data
+
+  mongo: &mongo-service
+    image: *mongo-image
+    container_name: mongo
+    restart: unless-stopped
+
+    healthcheck:
+      test: [ "CMD-SHELL", "mongosh --quiet --eval 'db.adminCommand({ ping: 1 })' || exit 1" ]
+      interval: 1m
+      retries: 2
+      start_period: 10s
+      timeout: 5s
+    ports:
+      - "27017:27017"
+    volumes:
+      - ./data/mongo:/data/db
+
+  postgres: &postgres-service
+    image: *postgres-image
+    container_name: postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: "keycloak"
+      POSTGRES_USER: "keycloak"
+      POSTGRES_PASSWORD: "keycloak123"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -h localhost -d $$POSTGRES_DB -U $$POSTGRES_USER || exit 1" ]
+      interval: 1m
+      retries: 2
+      start_period: 10s
+      timeout: 5s
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+
+  triton: &triton-service
+    image: *triton-image
+    container_name: triton
+    restart: unless-stopped
+
+    command: [ "tritonserver", "--model-repository=/models", "--allow-cpu-metrics=true" ]
+    environment:
+      TRITONSERVER_CPU_ONLY: "1"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8000/v2/health/ready || exit 1" ]
+      interval: 1m
+      retries: 2
+      start_period: 1m
+      timeout: 5s
+    ports:
+      - "8000:8000" # HTTP
+      - "8001:8001" # gRPC
+      - "8002:8002" # metrics
+    volumes:
+      - ./data/triton/models:/models
+
+  vllm-embedding: &vllm-embedding-service
+    image: *vllm-image
+    container_name: vllm-embedding
+    restart: unless-stopped
+
+    cpus: 2
+    mem_limit: 10g
+
+    # GPU access (requires NVIDIA Container Toolkit)
+    deploy:
+      resources:
+        limits:
+          cpus: 2
+          memory: 10g
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+
+    command: [ "vllm", "serve", *vllm-embedding-model, "--gpu-memory-utilization=0.1", "--max-num-seqs=1" ]
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+      NVIDIA_VISIBLE_DEVICES: "all"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1" ]
+      interval: 1m
+      retries: 2
+      start_period: 10m
+      timeout: 5s
+    ports:
+      - "8123:8000"
+    volumes:
+      - ./data/vllm-embedding/models:/root/.cache/huggingface
+
+  vllm-generation: &vllm-generation-service
+    image: *vllm-image
+    container_name: vllm-generation
+    restart: unless-stopped
+
+    cpus: 14
+    mem_limit: 80g
+
+    # GPU access (requires NVIDIA Container Toolkit)
+    deploy:
+      resources:
+        limits:
+          cpus: 14
+          memory: 80g
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+
+    command: [ "vllm", "serve", *vllm-generation-model, "--gpu-memory-utilization=0.7" ]
+    environment:
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+      NVIDIA_VISIBLE_DEVICES: "all"
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1" ]
+      interval: 1m
+      retries: 2
+      start_period: 10m
+      timeout: 5s
+    ports:
+      - "8100:8000"
+    volumes:
+      - ./data/vllm-generation/models:/root/.cache/huggingface
+
+  kronos: &kronos-service
+    image: *kronos-image
+    container_name: kronos
+    restart: unless-stopped
+
+    depends_on:
+      minio:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    env_file:
+      - ./config.env
+      - ./config.local.env
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:9625/health || exit 1" ]
+      interval: 1m
+      retries: 2
+      start_period: 10s
+      timeout: 5s
+    ports:
+      - "9625:9625"
+
+  maestro: &maestro-service
+    image: *maestro-image
+    container_name: maestro
+    restart: unless-stopped
+
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    env_file:
+      - ./config.env
+      - ./config.local.env
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8020/health || exit 1" ]
+      interval: 1m
+      retries: 2
+      start_period: 10s
+      timeout: 5s
+    ports:
+      - "8020:8020"
+    volumes:
+      - ./data/maestro/frontend:/home/app/frontend
+
+  ragnarok: &ragnarok-service
+    image: *ragnarok-image
+    container_name: ragnarok
+    restart: unless-stopped
+
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    env_file:
+      - ./config.env
+      - ./config.local.env
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:9696/health || exit 1" ]
+      interval: 1m
+      retries: 2
+      start_period: 10s
+      timeout: 5s
+    ports:
+      - "9696:9696"
+    volumes:
+      - ./data/ragnarok/models:/home/app/.cache/huggingface
+
+services:
+  elasticsearch: *elasticsearch-service
+  keycloak: *keycloak-service
+  minio: *minio-service
+  mongo: *mongo-service
+  postgres: *postgres-service
+  # triton: *triton-service
+  vllm-embedding: *vllm-embedding-service
+  vllm-generation: *vllm-generation-service
+
+  kronos: *kronos-service
+  maestro: *maestro-service
+  ragnarok: *ragnarok-service

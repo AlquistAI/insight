@@ -1,0 +1,62 @@
+{
+  "dialogue_id": 0,
+  "dialogue_name": "default_en",
+  "dialogue_author": "ella.brichova@cvut.cz",
+  "dialogue_description": "Default dialogue implementing simple question-answering from the uploaded knowledge base.",
+  "language": "en-US",
+  "editor_active": true,
+  "editor_initial_file": "<ul><li>You are currently not connected to any external system.</li><li>I don't have access to the internet or any external databases.</li><li>I have access only to the provided context.</li><li>I cannot process information not provided in the context.</li></ul>",
+  "commands": [
+    {
+      "name": "help",
+      "state": 2
+    },
+    {
+      "name": "rag-mode",
+      "state": 3
+    },
+    {
+      "name": "top-n-mode",
+      "state": 4
+    }
+  ],
+  "states": [
+    {
+      "state_id": 1,
+      "command": {
+        "type": "image",
+        "text": "digital_theme.png",
+        "link": "strada",
+        "next_state": 2
+      }
+    },
+    {
+      "state_id": 2,
+      "command": {
+        "type": "display_text",
+        "text": "## Welcome to the Alquist Insight bot!\n- After opening the app, you can click the 'hamburger' icon on the top left and choose the files that will be used for the search.\n- After you type a question, the bot will generate an answer for you, while at the same time showing the PDF files it used on the right side of the screen.\n- Under the answer you can find buttons with numbers, referencing the pages the bot used for generating the answer.\n- Use the PDF view to ensure the generated answer is correct. **REMEMBER - The bot can make mistakes, always check the answer against the source!**\n- You can give feedback by clicking thumbs up/down buttons below the answer.",
+        "next_state": 3
+      }
+    },
+    {
+      "state_id": 3,
+      "command": {
+        "type": "get_rag",
+        "text": "Submit your query",
+        "next_state": 3,
+        "streaming": true,
+        "top_n_buttons_enabled": true,
+        "top_n_count": 10
+      }
+    },
+    {
+      "state_id": 4,
+      "command": {
+        "type": "get_top_n",
+        "text": "Submit your query",
+        "next_state": 4,
+        "top_n_count": 10
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[requires]
+python_version = "3.11"
+
+[packages]
+common = { extras = ["es"], path = "../common" }
+elasticsearch = "==8.17.2"
+fastapi = "*"
+httpx = "*"
+pydantic = "*"
+python-dateutil = "*"
+python-multipart = "*"
+requests = "*"
+uvicorn = { extras = ["standard"], version = "*" }
+
+[dev-packages]

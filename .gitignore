@@ -1,0 +1,50 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# Distribution / packaging
+build/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+sdist/
+var/
+wheels/
+*.egg-info/
+*.egg
+
+# Environments
+env/
+env.bak/
+venv/
+venv.bak/
+*.env*
+*.venv*
+
+# IDE
+.idea/
+.vscode/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Logs
+*.log
+
+# Misc
+/data/
+/maestro/frontend/
+.DS_Store
+
+# Exceptions
+!/config.env
