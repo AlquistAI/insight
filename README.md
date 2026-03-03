@@ -8,7 +8,7 @@ Prerequisites:
 
 - Docker with docker-compose plugin installed.
 - Linux-based system able to run bash scripts.
-- Nvidia GPU & 120 GB or more RAM for locally run embedding/generation models.
+- Nvidia GPU with CUDA support & 120 GB or more RAM for local embedding/generation models deployment.
 
 Clone the repository:
 
@@ -17,7 +17,7 @@ git clone https://github.com/AlquistAI/insight.git
 cd insight
 ```
 
-Prepare `config.local.env` file with the server configuration and secrets.
+Prepare `config.local.env` file in project root with the server configuration and secrets.
 The default/sample values are provided in the `config.env` file.
 The servers will run even with the default configuration, but setting up secrets etc. manually is recommended.
 For available configuration vars, you can have a look at `common/common/config.py`.
@@ -30,17 +30,29 @@ Run the deployment script (update the settings in the script if you made any ser
 
 The script will:
 
-1. Build Docker images for all apps.
-2. Prepare directories for docker compose (you will be prompted for sudo password) and run all required services.
-3. Run the vLLM services for embedding & generation models.
-    1. These services are resource-heavy. If you intend to use cloud models instead, disable the vLLM images
-       in the `docker-compose.yaml` file (i.e. comment out "vllm..." lines in the "services" section).
-4. Create default "test" project and upload the Alquist Insight docs as knowledge base.
+1. Ask for sudo permissions. Sudo is required for:
+    - `docker` commands in case the current user doesn't have access to the Docker socket.
+    - Initial setup of volume mount folder ownership for `docker compose` services.
+2. Build Docker images for all apps.
+3. Create an empty/dummy `config.local.env` file if it doesn't exist.
+4. Prepare directories for docker compose and run all required services.
+5. Run the vLLM services for embedding & generation models.
+    - These services are resource-heavy. If you intend to use cloud models instead, disable the vLLM images
+      in the `docker-compose.yaml` file (i.e. comment out "vllm..." lines in the "services" section).
+6. Wait for the services to be available (healthy status of Docker containers).
+    - The vLLM container with embedding model might take a few minutes to load.
+      Especially on the first run, it needs to download the embedding model.
+      Please be patient.
+    - The script does not wait for the vLLM generation model to be ready, since it can take longer and
+      the model is not required for finishing the initial setup. However, you should wait for it to be
+      ready before interacting with the chatbot UI. You can check the status of all Docker containers
+      using the `docker ps` command.
+7. Create default "test" project and upload the Alquist Insight docs as knowledge base.
 
 After the script finishes execution, you should be able to open the chatbot with the default "test" project
 in your browser at `http://localhost:8020/`.
 
-After the first deployment, you can use the usual `docker compose` commands to stop/run the deployment.
+After the first deployment, you can use the usual `docker compose [up|down|...]` commands to stop/run the deployment.
 The data is persisted in the `data` folder.
 
 ### Knowledge Base Upload
@@ -66,11 +78,11 @@ managing the related knowledge base in a similar fashion as a regular file explo
 
 To be able to log in to the admin console, you will have to first set up KeyCloak and create a user:
 
-1. Log in to the KeyCloak admin console at `http://localhost:8080/` using the credentials in `config.env`.
+1. Log in to the KeyCloak admin console at `http://localhost:8080/` (default credentials `admin` & `admin123`).
 2. (OPTIONAL) Create a new realm (default name `alquist`).
 3. Create a new client (default name `alquist-insight-development`).
-    1. Use `http://localhost:8020/admin/*` as the valid redirect/post logout URI.
-    2. Use `*` as allowed origins (i.e. allow all origins).
+    - Use `http://localhost:8020/admin/*` as the valid redirect/post logout URI.
+    - Use `*` as allowed origins (i.e. allow all origins).
 4. Create a new user/password combination.
 
 ToDo: Do this setup as part of the deployment script.

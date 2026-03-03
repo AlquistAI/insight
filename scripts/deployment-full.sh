@@ -6,12 +6,8 @@ APPS=("kronos" "maestro" "ragnarok")
 
 KRONOS_URL="http://localhost:9625"
 KRONOS_API_KEY=kronos123
-
 RAGNAROK_URL="http://localhost:9696"
-RAGNAROK_API_KEY=ragnarok123
-
 VLLM_EMBEDDING_URL="http://localhost:8123"
-VLLM_GENERATION_URL="http://localhost:8100"
 
 KEYCLOAK_URL="http://localhost:8080"
 KEYCLOAK_USER="admin"
@@ -19,7 +15,7 @@ KEYCLOAK_PASS="admin123"
 
 REALM_NAME="alquist"
 CLIENT_ID="alquist-insight-development"
-CLIENT_REDIRECT_URI="http://localhost:8020/*"
+CLIENT_REDIRECT_URI="http://localhost:8020/admin/*"
 
 DEFAULT_PROJECT_ID="test"
 DEFAULT_PROJECT_LANG="en"
@@ -33,27 +29,43 @@ DEFAULT_GENERATION_MODEL_PROVIDER="vLLM"
 DEFAULT_GENERATION_MODEL_NAME="Qwen/Qwen3-30B-A3B"
 DEFAULT_GENERATION_MODEL_BASE_URL="http://vllm-generation:8000/v1"
 
+### ASK THE USER FOR SUDO PERMISSIONS ###
+echo "Some commands in this script require sudo (e.g. for initial docker volume mount folders setup)."
+echo "Requesting authentication..."
+sudo -v || exit 1
+
+### CHECK DOCKER SETUP ###
+echo "==== Checking docker setup ===="
+
+if docker info > /dev/null 2>&1; then
+  echo "Docker socket does not require sudo. Setting the Docker command to 'docker'."
+  DOCKER="docker"
+else
+  echo "Docker socket requires sudo. Setting the Docker command to 'sudo docker'."
+  DOCKER="sudo docker"
+fi
+
 ### BUILD DOCKER IMAGES ###
 echo "==== Building Docker images ===="
 
 for APP in "${APPS[@]}"; do
   echo "Building $APP..."
-  docker build -f "$APP/Dockerfile" -t "$APP:latest" .
+  $DOCKER build -f "$APP/Dockerfile" -t "$APP:latest" .
 done
 
 ### START DOCKER COMPOSE ###
 echo "==== Preparing directories required for docker compose ===="
-echo "(root privileges needed for setting up ownership)"
 mkdir -p data/{elasticsearch,keycloak,maestro/frontend,ragnarok/models}
 sudo chown -R 1000:1000 data/{elasticsearch,keycloak}
 sudo chown -R 999:999 data/{maestro,ragnarok}
 
 echo "==== Starting docker compose ===="
 touch config.local.env
-docker compose up -d
+$DOCKER compose up -d
 
 ### WAIT FOR BACKEND SERVICES ###
 echo "==== Waiting for backend services to become ready ===="
+echo "This can take a few minutes as the vLLM containers need to download/load the models. Please be patient."
 
 until curl -fs "$KRONOS_URL/health" > /dev/null; do
   echo "Kronos not ready yet..."
@@ -134,9 +146,10 @@ else
     "$KRONOS_URL/knowledge_base/file/bulk?project_id=$DEFAULT_PROJECT_ID&source_type=txt&language=en-US&model_provider=$DEFAULT_RETRIEVAL_MODEL_PROVIDER&model_name=$DEFAULT_RETRIEVAL_MODEL_NAME&model_base_url=$DEFAULT_RETRIEVAL_MODEL_BASE_URL" \
     -H "X-Api-Key: $KRONOS_API_KEY" \
     -H "Content-Type: multipart/form-data" \
-    -F "files=@README.md;type=text/markdown" \
+    -F "files=@common/common/config.py;type=text/x-python" \
     -F "files=@config.env" \
-    -F "files=@common/common/config.py;type=text/x-python"
+    -F "files=@docker-compose.yaml;type=application/yaml" \
+    -F "files=@README.md;type=text/markdown"
 
   echo -e "\n\nExample documents uploaded to '$DEFAULT_PROJECT_ID' project."
 fi
@@ -152,7 +165,7 @@ fi
 ### LOGIN TO KEYCLOAK ###
 #echo "==== Logging in to Keycloak admin CLI ===="
 #
-#docker exec keycloak kc.sh \
+#$DOCKER exec keycloak kc.sh \
 #    login \
 #    --server "$KEYCLOAK_URL" \
 #    --realm master \
@@ -162,23 +175,23 @@ fi
 ### CREATE REALM IF MISSING ###
 #echo "==== Creating realm '$REALM_NAME' if it does not exist ===="
 #
-#if docker exec keycloak kc.sh get realms/"$REALM_NAME" > /dev/null 2>&1; then
+#if $DOCKER exec keycloak kc.sh get realms/"$REALM_NAME" > /dev/null 2>&1; then
 #    echo "Realm '$REALM_NAME' already exists. Skipping."
 #else
-#    docker exec keycloak kc.sh create realms -s realm="$REALM_NAME" -s enabled=true
+#    $DOCKER exec keycloak kc.sh create realms -s realm="$REALM_NAME" -s enabled=true
 #    echo "Realm '$REALM_NAME' created."
 #fi
 
 ### CREATE CLIENT IF MISSING ###
 #echo "==== Creating client '$CLIENT_ID' if missing ===="
 #
-#CLIENT_EXISTS=$(docker exec keycloak kc.sh \
+#CLIENT_EXISTS=$($DOCKER exec keycloak kc.sh \
 #  get clients -r "$REALM_NAME" --fields clientId | grep -c "\"$CLIENT_ID\"" || true)
 #
 #if [ "$CLIENT_EXISTS" -gt 0 ]; then
 #    echo "Client '$CLIENT_ID' already exists. Skipping."
 #else
-#    docker exec keycloak kc.sh create clients \
+#    $DOCKER exec keycloak kc.sh create clients \
 #        -r "$REALM_NAME" \
 #        -s clientId="$CLIENT_ID" \
 #        -s enabled=true \
@@ -190,3 +203,5 @@ fi
 
 echo "==== Deployment completed successfully ===="
 echo "You can now access the chatbot UI at http://localhost:8020/"
+echo "It might still take a while for the generation model to load."
+echo "You can check the status of all docker containers using the 'docker ps' command."
