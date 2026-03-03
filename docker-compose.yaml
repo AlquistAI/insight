@@ -159,22 +159,25 @@ x-services:
     container_name: vllm-embedding
     restart: unless-stopped
 
-    cpus: 2
-    mem_limit: 10g
+    gpus: all
+    mem_limit: 30g
+    shm_size: 8g
+    ulimits:
+      memlock: -1
+      stack: 67108864
 
     # GPU access (requires NVIDIA Container Toolkit)
     deploy:
       resources:
         limits:
-          cpus: 2
-          memory: 10g
+          memory: 30g
         reservations:
           devices:
             - driver: nvidia
               count: all
               capabilities: [ gpu ]
 
-    command: [ "vllm", "serve", *vllm-embedding-model, "--gpu-memory-utilization=0.1", "--max-num-seqs=1" ]
+    command: [ "vllm", "serve", *vllm-embedding-model, "--gpu-memory-utilization=0.2", "--max-num-seqs=1" ]
     environment:
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
       NVIDIA_VISIBLE_DEVICES: "all"
@@ -194,15 +197,18 @@ x-services:
     container_name: vllm-generation
     restart: unless-stopped
 
-    cpus: 14
-    mem_limit: 80g
+    gpus: all
+    mem_limit: 90g
+    shm_size: 8g
+    ulimits:
+      memlock: -1
+      stack: 67108864
 
     # GPU access (requires NVIDIA Container Toolkit)
     deploy:
       resources:
         limits:
-          cpus: 14
-          memory: 80g
+          memory: 90g
         reservations:
           devices:
             - driver: nvidia
