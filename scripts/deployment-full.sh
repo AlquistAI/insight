@@ -79,7 +79,7 @@ done
 
 until curl -fs "$VLLM_EMBEDDING_URL/health" > /dev/null; do
   echo "vLLM embedding model not ready yet..."
-  sleep 5
+  sleep 30
 done
 
 ### UPLOAD DEFAULT DIALOGUE/IMAGE FILES IF MISSING ###
