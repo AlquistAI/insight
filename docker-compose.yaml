@@ -57,8 +57,7 @@ x-services:
     container_name: keycloak
     restart: unless-stopped
 
-    command:
-      - start-dev
+    command: [ "start-dev" ]
     depends_on:
       postgres:
         condition: service_healthy
@@ -81,7 +80,7 @@ x-services:
     container_name: minio
     restart: unless-stopped
 
-    command: server /data --console-address ":9001"
+    command: [ "server", "/data", "--console-address=:9001" ]
     environment:
       MINIO_ROOT_USER: "admin"
       MINIO_ROOT_PASSWORD: "admin123"
@@ -160,7 +159,7 @@ x-services:
     restart: unless-stopped
 
     gpus: all
-    mem_limit: 30g
+    mem_limit: 20g
     shm_size: 8g
     ulimits:
       memlock: -1
@@ -170,14 +169,14 @@ x-services:
     deploy:
       resources:
         limits:
-          memory: 30g
+          memory: 20g
         reservations:
           devices:
             - driver: nvidia
               count: all
               capabilities: [ gpu ]
 
-    command: [ "vllm", "serve", *vllm-embedding-model, "--gpu-memory-utilization=0.2", "--max-num-seqs=1" ]
+    command: [ "sh", "-c", "sleep 10 && exec vllm serve \"$0\" --gpu-memory-utilization=0.1 --max-num-seqs=1", *vllm-embedding-model ]
     environment:
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
       NVIDIA_VISIBLE_DEVICES: "all"
@@ -215,7 +214,10 @@ x-services:
               count: all
               capabilities: [ gpu ]
 
-    command: [ "vllm", "serve", *vllm-generation-model, "--gpu-memory-utilization=0.7" ]
+    command: [ "sh", "-c", "sleep 10 && exec vllm serve \"$0\" --gpu-memory-utilization=0.7", *vllm-generation-model ]
+    depends_on:
+      vllm-embedding:
+        condition: service_healthy
     environment:
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
       NVIDIA_VISIBLE_DEVICES: "all"

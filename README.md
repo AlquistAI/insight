@@ -37,17 +37,17 @@ The script will:
 3. Create an empty/dummy `config.local.env` file if it doesn't exist.
 4. Prepare directories for docker compose and run all required services.
 5. Run the vLLM services for embedding & generation models.
-    - These services are resource-heavy. If you intend to use cloud models instead, disable the vLLM images
+    - These services are resource-heavy. If you intend to use cloud models instead, disable the vLLM containers
       in the `docker-compose.yaml` file (i.e. comment out "vllm..." lines in the "services" section).
-6. Wait for the services to be available (healthy status of Docker containers).
-    - The vLLM container with embedding model might take a few minutes to load.
-      Especially on the first run, it needs to download the embedding model.
-      Please be patient.
+    - The vLLM containers might take a long time to start up, since they need to download the models on the first run.
+      The default generation model has ~60 GB. It is recommended to do the initial setup on a wired/fast connection.
+    - After the first run, the models are persisted in the `data` folder. Any subsequent start of the vLLM services
+      should only take a few minutes.
     - The script does not wait for the vLLM generation model to be ready, since it can take longer and
       the model is not required for finishing the initial setup. However, you should wait for it to be
       ready before interacting with the chatbot UI. You can check the status of all Docker containers
       using the `docker ps` command.
-7. Create default "test" project and upload the Alquist Insight docs as knowledge base.
+6. Create default "test" project and upload the Alquist Insight docs as knowledge base.
 
 After the script finishes execution, you should be able to open the chatbot with the default "test" project
 in your browser at `http://localhost:8020/`.

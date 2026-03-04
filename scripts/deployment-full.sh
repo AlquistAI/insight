@@ -46,6 +46,7 @@ else
 fi
 
 ### BUILD DOCKER IMAGES ###
+# ToDo: Build the images directly through docker-compose.
 echo "==== Building Docker images ===="
 
 for APP in "${APPS[@]}"; do
@@ -60,12 +61,13 @@ sudo chown -R 1000:1000 data/{elasticsearch,keycloak}
 sudo chown -R 999:999 data/{maestro,ragnarok}
 
 echo "==== Starting docker compose ===="
+echo "The vllm-generation container waits for the vllm-embedding container to be ready before it starts."
+echo "This can take some time as the vLLM containers need to download/load the models. Please be patient."
 touch config.local.env
 $DOCKER compose up -d
 
 ### WAIT FOR BACKEND SERVICES ###
 echo "==== Waiting for backend services to become ready ===="
-echo "This can take a few minutes as the vLLM containers need to download/load the models. Please be patient."
 
 until curl -fs "$KRONOS_URL/health" > /dev/null; do
   echo "Kronos not ready yet..."
