@@ -13,13 +13,78 @@ from pathlib import Path
 from pydantic import AnyUrl, Field, SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from common.models.enums import ClientName, LogFormat, OpenAIType, StorageType
+from common.models.enums import ClientName, LogFormat, ModelProvider, OpenAIType, StorageType
+from common.models.validation import Language
 
 DIR_ROOT = Path(__file__).parent.parent.parent
 PATH_ES_CERT = Path("/etc/ssl/certs/es/ca.crt")
 
 
+class Defaults(BaseSettings):
+    """Default values used throughout the project."""
+
+    # Project/content language
+    LANG: Language = "cs-CZ"
+
+    ###############
+    ## RETRIEVAL ##
+    ###############
+
+    # Embedding model
+    PROVIDER_EMB: ModelProvider = ModelProvider.OpenAI
+    MODEL_EMB: str = "text-embedding-3-large"
+    BASE_URL_EMB: str | None = None
+
+    # K-closest matches found by BM25 search
+    K_BM25: int = 5
+
+    # K-closest matches found by cosine similarity
+    K_EMB: int = 5
+
+    # Number of candidates for KNN-search in vector DB
+    NUM_CANDIDATES: int = 100
+
+    ###############
+    ## RERANKING ##
+    ###############
+
+    # Reranking model
+    PROVIDER_RERANK: ModelProvider = ModelProvider.Cohere
+    MODEL_RERANK: str = "rerank-v3.5"
+
+    # K-closest matches after reranking
+    K_RERANK: int = 5
+
+    ################
+    ## GENERATION ##
+    ################
+
+    # LLM
+    PROVIDER_LLM: ModelProvider = ModelProvider.OpenAI
+    MODEL_LLM: str = "gpt-4o"
+    BASE_URL_LLM: str | None = None
+    TEMPERATURE: float = 0.7
+
+    model_config = SettingsConfigDict(
+        case_sensitive=True,
+        env_file=(
+            "/config/config.local.env",
+            DIR_ROOT / "config.env",
+            DIR_ROOT / "config.local.env",
+        ),
+        env_parse_none_str="None",
+        env_prefix="DEFAULT_",
+        extra="ignore",
+        validate_assignment=True,
+        validate_by_alias=True,
+        validate_by_name=False,
+        validate_default=True,
+    )
+
+
 class Config(BaseSettings):
+    """Configuration required during server start."""
+
     DEPLOYMENT: str = "local"
 
     #############
@@ -135,6 +200,7 @@ class Config(BaseSettings):
         validate_assignment=True,
         validate_by_alias=True,
         validate_by_name=False,
+        validate_default=True,
     )
 
     @field_validator("KRONOS_LOG_LEVEL", "MAESTRO_LOG_LEVEL", "RAGNAROK_LOG_LEVEL")
@@ -177,3 +243,4 @@ class Config(BaseSettings):
 
 # noinspection PyArgumentList
 CONFIG = Config()
+DF = Defaults()

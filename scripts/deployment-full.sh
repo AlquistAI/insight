@@ -4,30 +4,27 @@ set -euo pipefail
 ### CONFIGURATION ###
 APPS=("kronos" "maestro" "ragnarok")
 
-KRONOS_URL="http://localhost:9625"
-KRONOS_API_KEY=kronos123
-RAGNAROK_URL="http://localhost:9696"
+echo "==== Reading server config ===="
+touch config.local.env
+source config.env
+source config.local.env
+
+KRONOS_URL="${KRONOS_URL_EXTERNAL:-http://localhost:9625}"
+MAESTRO_URL="${MAESTRO_URL_EXTERNAL:-http://localhost:8020}"
+RAGNAROK_URL="${RAGNAROK_URL_EXTERNAL:-http://localhost:9696}"
 VLLM_EMBEDDING_URL="http://localhost:8123"
 
-KEYCLOAK_URL="http://localhost:8080"
+KEYCLOAK_URL="${KEYCLOAK_URL_EXTERNAL:-http://localhost:8080}"
 KEYCLOAK_USER="admin"
 KEYCLOAK_PASS="admin123"
 
-REALM_NAME="alquist"
-CLIENT_ID="alquist-insight-development"
-CLIENT_REDIRECT_URI="http://localhost:8020/admin/*"
+REALM_NAME="${KEYCLOAK_REALM:-alquist}"
+CLIENT_ID="${KEYCLOAK_CLIENT_ID:-alquist-insight-development}"
+CLIENT_REDIRECT_URI="${MAESTRO_URL}/admin/*"
 
 DEFAULT_PROJECT_ID="test"
 DEFAULT_PROJECT_LANG="en"
 DEFAULT_PROJECT_LANG_CODE="en-US"
-
-DEFAULT_RETRIEVAL_MODEL_PROVIDER="vLLM"
-DEFAULT_RETRIEVAL_MODEL_NAME="Qwen/Qwen3-Embedding-0.6B"
-DEFAULT_RETRIEVAL_MODEL_BASE_URL="http://vllm-embedding:8000/v1"
-
-DEFAULT_GENERATION_MODEL_PROVIDER="vLLM"
-DEFAULT_GENERATION_MODEL_NAME="Qwen/Qwen3-30B-A3B"
-DEFAULT_GENERATION_MODEL_BASE_URL="http://vllm-generation:8000/v1"
 
 ### ASK THE USER FOR SUDO PERMISSIONS ###
 echo "Some commands in this script require sudo (e.g. for initial docker volume mount folders setup)."
@@ -63,7 +60,6 @@ sudo chown -R 999:999 data/{maestro,ragnarok}
 echo "==== Starting docker compose ===="
 echo "The vllm-generation container waits for the vllm-embedding container to be ready before it starts."
 echo "This can take some time as the vLLM containers need to download/load the models. Please be patient."
-touch config.local.env
 $DOCKER compose up -d
 
 ### WAIT FOR BACKEND SERVICES ###
@@ -123,29 +119,14 @@ else
     -H "Content-Type: application/json" \
     -d '{
       "_id": "'$DEFAULT_PROJECT_ID'",
-      "language": "'$DEFAULT_PROJECT_LANG_CODE'",
-      "ai_settings": {
-        "retrieval": {
-          "model": {
-            "provider": "'$DEFAULT_RETRIEVAL_MODEL_PROVIDER'",
-            "name": "'$DEFAULT_RETRIEVAL_MODEL_NAME'",
-            "base_url": "'$DEFAULT_RETRIEVAL_MODEL_BASE_URL'"
-          }
-        },
-        "generation": {
-          "model": {
-            "provider": "'$DEFAULT_GENERATION_MODEL_PROVIDER'",
-            "name": "'$DEFAULT_GENERATION_MODEL_NAME'",
-            "base_url": "'$DEFAULT_GENERATION_MODEL_BASE_URL'"
-          }
-        }
-      }
+      "name": "Default Test Project",
+      "language": "'$DEFAULT_PROJECT_LANG_CODE'"
     }'
 
   echo -e "\n\nProject '$DEFAULT_PROJECT_ID' created.\n"
 
   curl -X "POST" \
-    "$KRONOS_URL/knowledge_base/file/bulk?project_id=$DEFAULT_PROJECT_ID&source_type=txt&language=en-US&model_provider=$DEFAULT_RETRIEVAL_MODEL_PROVIDER&model_name=$DEFAULT_RETRIEVAL_MODEL_NAME&model_base_url=$DEFAULT_RETRIEVAL_MODEL_BASE_URL" \
+    "$KRONOS_URL/knowledge_base/file/bulk?project_id=$DEFAULT_PROJECT_ID&source_type=txt&language=$DEFAULT_PROJECT_LANG_CODE" \
     -H "X-Api-Key: $KRONOS_API_KEY" \
     -H "Content-Type: multipart/form-data" \
     -F "files=@common/common/config.py;type=text/x-python" \
@@ -204,6 +185,6 @@ fi
 #fi
 
 echo "==== Deployment completed successfully ===="
-echo "You can now access the chatbot UI at http://localhost:8020/"
+echo "You can now access the chatbot UI at $MAESTRO_URL"
 echo "It might still take a while for the generation model to load."
 echo "You can check the status of all docker containers using the 'docker ps' command."

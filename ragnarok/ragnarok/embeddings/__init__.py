@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from common.models import defaults as df
+from common.config import DF
 from common.models.enums import ModelProvider
 from common.utils import exceptions as exc
 from common.utils.singleton import Singleton
@@ -22,9 +22,9 @@ class EmbeddingFactory(metaclass=Singleton):
 
     def get_model(
             self,
-            provider: ModelProvider = df.PROVIDER_EMB,
-            name: str = df.MODEL_EMB,
-            base_url: str | None = None,
+            provider: ModelProvider = DF.PROVIDER_EMB,
+            name: str = DF.MODEL_EMB,
+            base_url: str | None = DF.BASE_URL_EMB,
     ) -> EmbeddingBase:
         """
         Get or generate embedding model instance.
@@ -40,7 +40,7 @@ class EmbeddingFactory(metaclass=Singleton):
         return cls(**args)
 
     @staticmethod
-    def get_model_class(provider: ModelProvider = df.PROVIDER_EMB) -> type[EmbeddingBase]:
+    def get_model_class(provider: ModelProvider = DF.PROVIDER_EMB) -> type[EmbeddingBase]:
         """Get embedding model class based on provider."""
 
         if provider == ModelProvider.OpenAI:
@@ -54,9 +54,9 @@ class EmbeddingFactory(metaclass=Singleton):
 
     @staticmethod
     def get_model_args(
-            provider: ModelProvider = df.PROVIDER_EMB,
-            name: str = df.MODEL_EMB,
-            base_url: str | None = None,
+            provider: ModelProvider = DF.PROVIDER_EMB,
+            name: str = DF.MODEL_EMB,
+            base_url: str | None = DF.BASE_URL_EMB,
     ) -> dict[str, Any]:
         """Get embedding model class arguments."""
 

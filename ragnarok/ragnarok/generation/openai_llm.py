@@ -10,8 +10,8 @@ from typing import Generator
 
 from openai import NOT_GIVEN, NotGiven
 
+from common.config import DF
 from common.core.logger_utils import log_elapsed_time
-from common.models import defaults as df
 from common.models.enums import ModelProvider
 from common.services.openai import get_client, get_gpt_version
 from ragnarok.generation.base import LLMBase
@@ -30,7 +30,7 @@ class OpenAILLM(LLMBase):
     def chat_completion(
             self,
             messages: list[dict[str, str]],
-            temperature: float = df.TEMPERATURE,
+            temperature: float = DF.TEMPERATURE,
     ) -> str:
         # noinspection PyTypeChecker
         return self.client.chat.completions.create(
@@ -44,7 +44,7 @@ class OpenAILLM(LLMBase):
     def chat_completion_stream(
             self,
             messages: list[dict[str, str]],
-            temperature: float = df.TEMPERATURE,
+            temperature: float = DF.TEMPERATURE,
     ) -> Generator[str, None, None]:
         # noinspection PyTypeChecker
         completion = self.client.chat.completions.create(
@@ -91,7 +91,7 @@ class OpenAILLM(LLMBase):
         # Use the provided value in all other cases.
         return reasoning_effort
 
-    def _validate_temperature(self, temperature: float = df.TEMPERATURE) -> float | NotGiven:
+    def _validate_temperature(self, temperature: float = DF.TEMPERATURE) -> float | NotGiven:
         """
         Check if the given temperature is valid for the selected model and set it accordingly.
 

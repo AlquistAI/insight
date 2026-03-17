@@ -9,7 +9,7 @@
 from abc import ABC, abstractmethod
 from typing import Generator
 
-from common.models import defaults as df
+from common.config import DF
 from common.models.enums import ModelProvider
 from common.utils.singleton import SingletonABC
 
@@ -26,7 +26,7 @@ class LLMBase(ABC, metaclass=SingletonABC):
     def chat_completion(
             self,
             messages: list[dict[str, str]],
-            temperature: float = df.TEMPERATURE,
+            temperature: float = DF.TEMPERATURE,
     ) -> str:
         """
         Generate chat completion response based on the input messages.
@@ -41,7 +41,7 @@ class LLMBase(ABC, metaclass=SingletonABC):
     def chat_completion_stream(
             self,
             messages: list[dict[str, str]],
-            temperature: float = df.TEMPERATURE,
+            temperature: float = DF.TEMPERATURE,
     ) -> Generator[str, None, None]:
         """
         Stream chat completion response based on the input messages.

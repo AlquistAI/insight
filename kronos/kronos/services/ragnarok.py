@@ -11,8 +11,8 @@ from typing import BinaryIO, Generator
 import httpx
 import requests
 
-from common.config import CONFIG
-from common.models import api as ma, api_ragnarok as mar, defaults as df, elastic as me
+from common.config import CONFIG, DF
+from common.models import api as ma, api_ragnarok as mar, elastic as me
 from common.models.enums import SourceType
 from common.models.project import EmbeddingModelSettings
 
@@ -30,7 +30,7 @@ def upload_file_kb(
         project_id: str = "",
         source_file: str = "",
         source_type: SourceType = SourceType.PDF,
-        language: str = df.LANG,
+        language: str = DF.LANG,
         model_settings: EmbeddingModelSettings | None = None,
         custom_metadata: str = "",
         enable_highlights: bool = False,

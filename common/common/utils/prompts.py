@@ -6,7 +6,7 @@
     Utilities for building LLM prompts.
 """
 
-from common.models import defaults as df
+from common.config import DF
 
 LANG_CODE_TO_NAME = {
     "cs": "Czech",
@@ -36,7 +36,7 @@ PROMPT_REWRITE = (
 )
 
 
-def build_prompt_general(kb_documents: list[str], lang: str = df.LANG) -> str:
+def build_prompt_general(kb_documents: list[str], lang: str = DF.LANG) -> str:
     """
     Build LLM prompt for general RAG.
 
@@ -47,11 +47,11 @@ def build_prompt_general(kb_documents: list[str], lang: str = df.LANG) -> str:
 
     return PROMPT_GENERAL.format(
         context="\n\n".join(kb_documents),
-        language=LANG_CODE_TO_NAME.get(lang) or LANG_CODE_TO_NAME[df.LANG],
+        language=LANG_CODE_TO_NAME.get(lang) or LANG_CODE_TO_NAME[DF.LANG],
     )
 
 
-def build_prompt_rewrite(lang: str = df.LANG) -> str:
+def build_prompt_rewrite(lang: str = DF.LANG) -> str:
     """
     Build LLM prompt for query rewrite.
 
@@ -59,7 +59,7 @@ def build_prompt_rewrite(lang: str = df.LANG) -> str:
     :return: query rewrite LLM prompt
     """
 
-    return PROMPT_REWRITE.format(language=LANG_CODE_TO_NAME.get(lang) or LANG_CODE_TO_NAME[df.LANG])
+    return PROMPT_REWRITE.format(language=LANG_CODE_TO_NAME.get(lang) or LANG_CODE_TO_NAME[DF.LANG])
 
 
 def build_messages(system_prompt: str, query: str, history: list[dict[str, str]]) -> list[dict[str, str]]:

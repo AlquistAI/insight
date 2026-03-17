@@ -9,7 +9,8 @@
 from collections import defaultdict
 from typing import Any, Generator
 
-from common.models import defaults as df, elastic as me
+from common.config import DF
+from common.models import elastic as me
 from common.models.api_ragnarok import ConversationTurn
 from common.models.project import AISettings
 from common.utils.prompts import build_messages, build_prompt_general
@@ -28,7 +29,7 @@ def rag(
         query: str,
         context: list[ConversationTurn] | None = None,
         kb_ids: list[str] | None = None,
-        lang: str = df.LANG,
+        lang: str = DF.LANG,
         settings: AISettings | None = None,
         ftr_custom: list[dict[str, Any]] | None = None,
         stream: bool = False,

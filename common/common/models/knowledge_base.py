@@ -11,7 +11,7 @@ from typing import Any, Literal, get_args
 
 from pydantic import Field
 
-from common.models import defaults as df
+from common.config import DF
 from common.models.base import CustomBaseModel
 from common.models.enums import SourceType
 from common.models.validation import Language, MongoID, object_id_str, utc_now
@@ -28,8 +28,8 @@ class KnowledgeBase(CustomBaseModel):
     description: str = ""
 
     custom_metadata: dict[str, Any] = Field(default_factory=dict)
-    embedding_model: str = df.MODEL_EMB
-    language: Language = df.LANG
+    embedding_model: str = DF.MODEL_EMB
+    language: Language = DF.LANG
     total_pages: int = 1
 
     source_file: str | None = None

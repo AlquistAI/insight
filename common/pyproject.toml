@@ -28,7 +28,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-es = ["elasticsearch==8.17.2"]
+es = ["elasticsearch"]
 jwt = ["httpx", "pyjwt[crypto]"]
 mongo = ["dnspython", "pymongo"]
 openai = ["openai"]

@@ -26,10 +26,10 @@ from langchain_community.vectorstores import ElasticsearchStore
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from common.config import CONFIG, PATH_ES_CERT
+from common.config import CONFIG, DF, PATH_ES_CERT
 from common.core import get_component_logger
 from common.core.logger_utils import log_elapsed_time
-from common.models import defaults as df, elastic as me
+from common.models import elastic as me
 from common.models.enums import SourceType
 from common.models.project import EmbeddingModelSettings, RetrievalSettings
 from common.utils import exceptions as exc
@@ -342,7 +342,7 @@ class VectorStore(metaclass=Singleton):
             project_id: str | None = None,
             source_file: str = "",
             source_type: SourceType = SourceType.PDF,
-            language: str = df.LANG,
+            language: str = DF.LANG,
             emb_settings: EmbeddingModelSettings | None = None,
             custom_metadata: dict[str, Any] | None = None,
             enable_highlights: bool = False,
@@ -411,7 +411,7 @@ class VectorStore(metaclass=Singleton):
             url: str,
             kb_id: str,
             project_id: str | None = None,
-            language: str = df.LANG,
+            language: str = DF.LANG,
             emb_settings: EmbeddingModelSettings | None = None,
             custom_metadata: dict[str, Any] | None = None,
             enable_highlights: bool = False,
@@ -473,13 +473,13 @@ class VectorStore(metaclass=Singleton):
         return documents
 
     @staticmethod
-    def _parse_docx(path: str, chunk_size: int = 1000, chunk_overlap: int = 100) -> list[Document]:
+    def _parse_docx(path: str, chunk_size: int = 2500, chunk_overlap: int = 200) -> list[Document]:
         loader = PyDOCXLoader(path)
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
         return loader.load_and_split(text_splitter)
 
     @staticmethod
-    def _parse_html(path: str, chunk_size: int = 1000, chunk_overlap: int = 100) -> list[Document]:
+    def _parse_html(path: str, chunk_size: int = 2500, chunk_overlap: int = 200) -> list[Document]:
         loader = BSHTMLLoader(path)
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
         return loader.load_and_split(text_splitter)
@@ -495,7 +495,7 @@ class VectorStore(metaclass=Singleton):
         return PyPPTXLoader(path).load()
 
     @staticmethod
-    def _parse_txt(path: str, chunk_size: int = 1000, chunk_overlap: int = 100) -> list[Document]:
+    def _parse_txt(path: str, chunk_size: int = 2500, chunk_overlap: int = 200) -> list[Document]:
         loader = TextLoader(path)
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
         return loader.load_and_split(text_splitter)

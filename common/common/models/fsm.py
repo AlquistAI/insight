@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from common.models import defaults as df
+from common.config import DF
 from common.models.base import CustomBaseModel
 from common.models.validation import Language
 
@@ -95,4 +95,4 @@ class Dialogue(CustomBaseModel):
 
     editor_active: bool = True
     editor_initial_file: str = ""
-    language: Language = df.LANG
+    language: Language = DF.LANG

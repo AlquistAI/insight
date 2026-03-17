@@ -13,7 +13,8 @@ from fastapi import status
 from fastapi.datastructures import UploadFile
 from fastapi.routing import APIRouter
 
-from common.models import api as ma, api_ragnarok as mar, defaults as df, elastic as me
+from common.config import DF
+from common.models import api as ma, api_ragnarok as mar, elastic as me
 from common.models.enums import ModelProvider, SourceType
 from common.models.project import EmbeddingModelSettings
 from common.utils.api import error_handler
@@ -114,10 +115,10 @@ def upload_file_kb(
         project_id: str = "",
         source_file: str = "",
         source_type: SourceType = SourceType.PDF,
-        language: str = df.LANG,
-        model_provider: ModelProvider = df.PROVIDER_EMB,
-        model_name: str = df.MODEL_EMB,
-        model_base_url: str = "",
+        language: str = DF.LANG,
+        model_provider: ModelProvider = DF.PROVIDER_EMB,
+        model_name: str = DF.MODEL_EMB,
+        model_base_url: str = DF.BASE_URL_EMB,
         custom_metadata: str = "",
         enable_highlights: bool = False,
 ) -> me.KBMetadata:
@@ -135,7 +136,7 @@ def upload_file_kb(
     :param model_provider: embedding model provider
     :param model_name: embedding model name
     :param model_base_url: custom base URL to use for the embedding model
-    :param custom_metadata: custom metadata (as json string)
+    :param custom_metadata: custom metadata (as JSON string)
     :param enable_highlights: build and index chunks required for the highlighting functionality
     :return: created knowledge base metadata
     """
@@ -176,7 +177,7 @@ def upload_url_kb(
         url: str,
         kb_id: str = "",
         project_id: str = "",
-        language: str = df.LANG,
+        language: str = DF.LANG,
         model_settings: EmbeddingModelSettings | None = None,
         custom_metadata: str = "",
         enable_highlights: bool = False,
@@ -191,7 +192,7 @@ def upload_url_kb(
     :param project_id: project ID
     :param language: text language
     :param model_settings: embedding model settings
-    :param custom_metadata: custom metadata (as json string)
+    :param custom_metadata: custom metadata (as JSON string)
     :param enable_highlights: build and index chunks required for the highlighting functionality
     :return: created knowledge base metadata
     """

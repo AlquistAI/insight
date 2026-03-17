@@ -8,7 +8,7 @@
 
 from abc import ABC, abstractmethod
 
-from common.models import defaults as df
+from common.config import DF
 from common.models.enums import ModelProvider
 from common.utils.singleton import SingletonABC
 
@@ -21,7 +21,7 @@ class RerankerBase(ABC, metaclass=SingletonABC):
         self.model_name = model_name
 
     @abstractmethod
-    def rerank(self, query: str, documents: list[str], k: int = df.K_RERANK) -> list[int]:
+    def rerank(self, query: str, documents: list[str], k: int = DF.K_RERANK) -> list[int]:
         """
         Rerank documents.
 

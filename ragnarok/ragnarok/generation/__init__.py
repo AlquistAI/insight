@@ -8,7 +8,7 @@
 
 from typing import Any
 
-from common.models import defaults as df
+from common.config import DF
 from common.models.enums import ModelProvider
 from common.utils import exceptions as exc
 from common.utils.singleton import Singleton
@@ -21,9 +21,9 @@ class LLMFactory(metaclass=Singleton):
 
     def get_model(
             self,
-            provider: ModelProvider = df.PROVIDER_LLM,
-            name: str = df.MODEL_LLM,
-            base_url: str | None = None,
+            provider: ModelProvider = DF.PROVIDER_LLM,
+            name: str = DF.MODEL_LLM,
+            base_url: str | None = DF.BASE_URL_LLM,
     ) -> LLMBase:
         """
         Get or generate LLM instance.
@@ -39,7 +39,7 @@ class LLMFactory(metaclass=Singleton):
         return cls(**args)
 
     @staticmethod
-    def get_model_class(provider: ModelProvider = df.PROVIDER_LLM) -> type[LLMBase]:
+    def get_model_class(provider: ModelProvider = DF.PROVIDER_LLM) -> type[LLMBase]:
         """Get LLM class based on provider."""
 
         if provider == ModelProvider.OpenAI:
@@ -51,9 +51,9 @@ class LLMFactory(metaclass=Singleton):
 
     @staticmethod
     def get_model_args(
-            provider: ModelProvider = df.PROVIDER_LLM,
-            name: str = df.MODEL_LLM,
-            base_url: str | None = None,
+            provider: ModelProvider = DF.PROVIDER_LLM,
+            name: str = DF.MODEL_LLM,
+            base_url: str | None = DF.BASE_URL_LLM,
     ) -> dict[str, Any]:
         """Get LLM class arguments."""
 

@@ -10,8 +10,8 @@ from typing import Generator
 
 from openai import OpenAI
 
+from common.config import DF
 from common.core.logger_utils import log_elapsed_time
-from common.models import defaults as df
 from common.models.enums import ModelProvider
 from ragnarok.generation.base import LLMBase
 
@@ -36,7 +36,7 @@ class NvidiaVLLM(LLMBase):
     def chat_completion(
             self,
             messages: list[dict[str, str]],
-            temperature: float = df.TEMPERATURE,
+            temperature: float = DF.TEMPERATURE,
     ) -> str:
         # noinspection PyTypeChecker
         return self.client.chat.completions.create(
@@ -50,7 +50,7 @@ class NvidiaVLLM(LLMBase):
     def chat_completion_stream(
             self,
             messages: list[dict[str, str]],
-            temperature: float = df.TEMPERATURE,
+            temperature: float = DF.TEMPERATURE,
     ) -> Generator[str, None, None]:
         # noinspection PyTypeChecker
         completion = self.client.chat.completions.create(

@@ -11,7 +11,7 @@ from typing import Literal, get_args
 
 from pydantic import Field
 
-from common.models import defaults as df
+from common.config import DF
 from common.models.base import CustomBaseModel
 from common.models.enums import ModelProvider
 from common.models.validation import Language, MongoID, object_id_str, utc_now
@@ -25,42 +25,42 @@ VER_PROJECTS: int = get_args(_T_VER_PROJECTS)[0]
 #################
 
 class EmbeddingModelSettings(CustomBaseModel):
-    provider: ModelProvider = df.PROVIDER_EMB
-    name: str = df.MODEL_EMB
-    base_url: str | None = None
+    provider: ModelProvider = DF.PROVIDER_EMB
+    name: str = DF.MODEL_EMB
+    base_url: str | None = DF.BASE_URL_EMB
 
 
 class RerankingModelSettings(CustomBaseModel):
-    provider: ModelProvider = df.PROVIDER_RERANK
-    name: str = df.MODEL_RERANK
+    provider: ModelProvider = DF.PROVIDER_RERANK
+    name: str = DF.MODEL_RERANK
 
 
 class GenerativeModelSettings(CustomBaseModel):
-    provider: ModelProvider = df.PROVIDER_LLM
-    name: str = df.MODEL_LLM
-    base_url: str | None = None
+    provider: ModelProvider = DF.PROVIDER_LLM
+    name: str = DF.MODEL_LLM
+    base_url: str | None = DF.BASE_URL_LLM
 
 
 class RetrievalSettings(CustomBaseModel):
     model: EmbeddingModelSettings = Field(default_factory=EmbeddingModelSettings)
 
-    k_bm25: int = df.K_BM25
-    k_emb: int = df.K_EMB
-    num_candidates: int = df.NUM_CANDIDATES
+    k_bm25: int = DF.K_BM25
+    k_emb: int = DF.K_EMB
+    num_candidates: int = DF.NUM_CANDIDATES
 
 
 class RerankingSettings(CustomBaseModel):
     enabled: bool = False
     model: RerankingModelSettings = Field(default_factory=RerankingModelSettings)
 
-    k: int = df.K_RERANK
+    k: int = DF.K_RERANK
 
 
 class GenerationSettings(CustomBaseModel):
     enabled: bool = True
     model: GenerativeModelSettings = Field(default_factory=GenerativeModelSettings)
 
-    temperature: float = df.TEMPERATURE
+    temperature: float = DF.TEMPERATURE
 
 
 class AISettings(CustomBaseModel):
@@ -78,7 +78,7 @@ class Project(CustomBaseModel):
 
     name: str = ""
     description: str = ""
-    language: Language = df.LANG
+    language: Language = DF.LANG
 
     ai_settings: AISettings = Field(default_factory=AISettings)
 

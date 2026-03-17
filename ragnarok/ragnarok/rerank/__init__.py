@@ -6,7 +6,7 @@
     Classes for managing rerankers.
 """
 
-from common.models import defaults as df
+from common.config import DF
 from common.models.enums import ModelProvider
 from common.utils import exceptions as exc
 from common.utils.singleton import Singleton
@@ -19,8 +19,8 @@ class RerankFactory(metaclass=Singleton):
 
     def get_model(
             self,
-            provider: ModelProvider = df.PROVIDER_RERANK,
-            name: str = df.MODEL_RERANK,
+            provider: ModelProvider = DF.PROVIDER_RERANK,
+            name: str = DF.MODEL_RERANK,
     ) -> RerankerBase:
         """
         Get or generate reranking model instance.
@@ -35,7 +35,7 @@ class RerankFactory(metaclass=Singleton):
         return cls(**args)
 
     @staticmethod
-    def get_model_class(provider: ModelProvider = df.PROVIDER_RERANK) -> type[RerankerBase]:
+    def get_model_class(provider: ModelProvider = DF.PROVIDER_RERANK) -> type[RerankerBase]:
         """Get reranking model class based on provider."""
 
         if provider == ModelProvider.Cohere:

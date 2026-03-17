@@ -9,12 +9,15 @@ python_version = "3.11"
 [packages]
 common = { extras = ["es"], path = "../common" }
 elasticsearch = "==8.17.2"
-fastapi = "*"
-httpx = "*"
-pydantic = "*"
-python-dateutil = "*"
-python-multipart = "*"
-requests = "*"
-uvicorn = { extras = ["standard"], version = "*" }
+fastapi = "==0.131.0"
+httpx = "==0.28.1"
+pydantic = "==2.12.5"
+python-dateutil = "==2.9.0.post0"
+python-multipart = "==0.0.22"
+requests = "==2.32.5"
+uvicorn = { extras = ["standard"], version = "==0.41.0" }
 
 [dev-packages]
+
+[pipenv]
+sort_pipfile = true

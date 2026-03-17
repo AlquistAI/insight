@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.routing import APIRouter
 
 from common.core import get_component_logger
-from common.models import api as ma, defaults as df
+from common.models import api as ma
 from common.models.enums import ResourceType, SourceType
 from common.models.knowledge_base import KnowledgeBase
 from common.utils.api import error_handler
@@ -113,8 +113,7 @@ def upload_file_kb(
         source_type: SourceType = SourceType.PDF,
         name: str = "",
         description: str = "",
-        language: str = df.LANG,
-        model_name: str = df.MODEL_EMB,
+        language: str = "",
         custom_metadata: str = "",
 ) -> KnowledgeBase:
     """
@@ -135,7 +134,6 @@ def upload_file_kb(
         name=name,
         description=description,
         language=language,
-        model_name=model_name,
         custom_metadata=custom_metadata,
     )
 
@@ -155,8 +153,7 @@ def upload_file_kb_bulk(
         source_type: SourceType = SourceType.PDF,
         name: str = "",
         description: str = "",
-        language: str = df.LANG,
-        model_name: str = df.MODEL_EMB,
+        language: str = "",
         custom_metadata: str = "",
 ) -> list[KnowledgeBase]:
     """
@@ -174,7 +171,6 @@ def upload_file_kb_bulk(
         name=name,
         description=description,
         language=language,
-        model_name=model_name,
         custom_metadata=custom_metadata,
     )
 

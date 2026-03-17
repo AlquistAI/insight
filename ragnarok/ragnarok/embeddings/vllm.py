@@ -15,12 +15,13 @@ from ragnarok.embeddings.base import EmbeddingBase
 
 MODEL_DIMS = {
     "google/embeddinggemma-300m": 768,
+    "Qwen/Qwen3-Embedding-0.6B": 1024,
 }
 
 
 class VLLMEmbeddings(EmbeddingBase):
 
-    def __init__(self, model_name: str = "google/embeddinggemma-300m", base_url: str | None = None):
+    def __init__(self, model_name: str = "Qwen/Qwen3-Embedding-0.6B", base_url: str | None = None):
         self.client = OpenAI(api_key="vllm", base_url=base_url)
 
         super().__init__(

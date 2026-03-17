@@ -6,8 +6,8 @@
     Utilities for the CQR (Conversational Query Reformulation).
 """
 
+from common.config import DF
 from common.core import get_component_logger
-from common.models import defaults as df
 from common.models.api_ragnarok import ConversationTurn
 from common.models.project import GenerativeModelSettings
 from common.utils.prompts import build_messages, build_prompt_rewrite
@@ -40,7 +40,7 @@ def process_context(context: list[ConversationTurn]) -> list[dict[str, str]]:
 def rewrite_query(
         query: str,
         history_messages: list[dict[str, str]],
-        lang: str = df.LANG,
+        lang: str = DF.LANG,
         settings: GenerativeModelSettings | None = None,
 ) -> str:
     """

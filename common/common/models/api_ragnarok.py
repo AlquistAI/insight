@@ -11,7 +11,8 @@ from typing import Any
 
 from pydantic import Field
 
-from common.models import defaults as df, elastic as me
+from common.config import DF
+from common.models import elastic as me
 from common.models.base import CustomBaseModel
 from common.models.enums import SourceType
 from common.models.project import AISettings
@@ -42,7 +43,7 @@ class RAGPayload(CustomBaseModel):
 
     ftr_custom: list[dict[str, Any]] | None = None
     kb_ids: list[str] | None = None
-    lang: str = df.LANG
+    lang: str = DF.LANG
     settings: AISettings = Field(default_factory=AISettings)
 
     return_highlights: bool = False

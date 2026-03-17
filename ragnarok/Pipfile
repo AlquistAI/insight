@@ -7,32 +7,35 @@ verify_ssl = true
 python_version = "3.11"
 
 [packages]
-bs4 = "*"
-cachetools = "*"
+beautifulsoup4 = "==4.14.3"
+cachetools = "==7.0.1"
 common = { extras = ["es", "openai"], path = "../common" }
 elasticsearch = "==8.17.2"
-fastapi = "*"
-gevent = "*"
-langchain = "*"
-langchain-community = "*"
-langchain-openai = "*"
-langchain-text-splitters = "*"
-numpy = "*"
-openai = "*"
-openpyxl = "*"
-pydantic = "*"
-pymupdf = "*"
-python-dateutil = "*"
-python-docx = "*"
-python-multipart = "*"
-python-pptx = "*"
-requests = "*"
-tritonclient = { extras = ["http"], version = "*" }
-uvicorn = { extras = ["standard"], version = "*" }
+fastapi = "==0.131.0"
+gevent = "==25.9.1"
+langchain = "==1.2.10"
+langchain-community = "==0.4.1"
+langchain-openai = "==1.1.10"
+langchain-text-splitters = "==1.1.1"
+numpy = "==2.4.2"
+openai = "==2.21.0"
+openpyxl = "==3.1.5"
+pydantic = "==2.12.5"
+pymupdf = "==1.27.1"
+python-dateutil = "==2.9.0.post0"
+python-docx = "==1.2.0"
+python-multipart = "==0.0.22"
+python-pptx = "==1.0.2"
+requests = "==2.32.5"
+tritonclient = { extras = ["http"], version = "==2.65.0" }
+uvicorn = { extras = ["standard"], version = "==0.41.0" }
 
 [dev-packages]
-einops = "*"
-scikit-learn = "*"
-sentence-transformers = "*"
-torch = "*"
-transformers = "*"
+einops = "==0.8.2"
+scikit-learn = "==1.8.0"
+sentence-transformers = "==5.2.3"
+torch = "==2.10.0"
+transformers = "==5.2.0"
+
+[pipenv]
+sort_pipfile = true

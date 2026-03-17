@@ -10,7 +10,7 @@ import numpy as np
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from common.models import defaults as df
+from common.config import DF
 from common.models.enums import ModelProvider
 from ragnarok.rerank.base import RerankerBase
 
@@ -24,7 +24,7 @@ class BGEReranker(RerankerBase):
 
         super().__init__(provider=ModelProvider.HuggingFace, model_name=model_name)
 
-    def rerank(self, query: str, documents: list[str], k: int = df.K_RERANK) -> list[int]:
+    def rerank(self, query: str, documents: list[str], k: int = DF.K_RERANK) -> list[int]:
         pairs = [[query, d] for d in documents]
 
         with torch.no_grad():
@@ -51,7 +51,7 @@ class JinaReranker(RerankerBase):
 
         super().__init__(provider=ModelProvider.HuggingFace, model_name=model_name)
 
-    def rerank(self, query: str, documents: list[str], k: int = df.K_RERANK) -> list[int]:
+    def rerank(self, query: str, documents: list[str], k: int = DF.K_RERANK) -> list[int]:
         pairs = [[query, d] for d in documents]
         scores = self.model.compute_score(pairs, max_length=1024)
         res = list(np.argsort(scores))

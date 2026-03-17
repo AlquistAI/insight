@@ -10,8 +10,9 @@ from fastapi import status
 from fastapi.datastructures import UploadFile
 from fastapi.routing import APIRouter
 
+from common.config import DF
 from common.core import get_component_logger
-from common.models import api as ma, api_ragnarok as mar, defaults as df, elastic as me
+from common.models import api as ma, api_ragnarok as mar, elastic as me
 from common.models.enums import SourceType
 from common.utils.api import error_handler
 from ragnarok.api import knowledge_base as api_kb
@@ -112,8 +113,8 @@ def upload_file_kb(
         kb_id: str = "",
         source_file: str = "",
         source_type: SourceType = SourceType.PDF,
-        language: str = df.LANG,
-        model_name: str = df.MODEL_EMB,
+        language: str = DF.LANG,
+        model_name: str = DF.MODEL_EMB,
         custom_metadata: str = "",
 ) -> me.KBMetadata:
     """

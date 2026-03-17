@@ -8,8 +8,7 @@
 
 import requests
 
-from common.config import CONFIG
-from common.models import defaults as df
+from common.config import CONFIG, DF
 from common.models.enums import ModelProvider
 from ragnarok.rerank.base import RerankerBase
 
@@ -24,7 +23,7 @@ class JinaReranker(RerankerBase):
 
         super().__init__(provider=ModelProvider.JinaAI, model_name=model_name)
 
-    def rerank(self, query: str, documents: list[str], k: int = df.K_RERANK) -> list[int]:
+    def rerank(self, query: str, documents: list[str], k: int = DF.K_RERANK) -> list[int]:
         res = requests.post(
             url="https://api.jina.ai/v1/rerank",
             headers=self._headers,

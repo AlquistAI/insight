@@ -8,7 +8,14 @@ Prerequisites:
 
 - Docker with docker-compose plugin installed.
 - Linux-based system able to run bash scripts.
-- Nvidia GPU with CUDA support & 120 GB or more RAM for local embedding/generation models deployment.
+- HW requirements for fully local deployment:
+    - Nvidia GPU with CUDA support
+    - 120 GiB RAM
+    - (tested on Nvidia DGX Spark machine)
+- HW requirements while using cloud models:
+    - 2 vCPUs
+    - 8 GiB RAM
+    - (tested on Standard D2ds v4 Kubernetes node on Azure)
 
 Clone the repository:
 
@@ -22,7 +29,7 @@ The default/sample values are provided in the `config.env` file.
 The servers will run even with the default configuration, but setting up secrets etc. manually is recommended.
 For available configuration vars, you can have a look at `common/common/config.py`.
 
-Run the deployment script (update the settings in the script if you made any server config changes):
+Run the deployment script from the repository root:
 
 ```shell
 ./scripts/deployment-full.sh
@@ -30,13 +37,14 @@ Run the deployment script (update the settings in the script if you made any ser
 
 The script will:
 
-1. Ask for sudo permissions. Sudo is required for:
+1. Create an empty/dummy `config.local.env` file if it doesn't exist.
+2. Read server configuration from the `config.env` & `config.local.env` files.
+3. Ask for sudo permissions. Sudo is required for:
     - `docker` commands in case the current user doesn't have access to the Docker socket.
     - Initial setup of volume mount folder ownership for `docker compose` services.
-2. Build Docker images for all apps.
-3. Create an empty/dummy `config.local.env` file if it doesn't exist.
-4. Prepare directories for docker compose and run all required services.
-5. Run the vLLM services for embedding & generation models.
+4. Build Docker images for all apps.
+5. Prepare directories for docker compose and run all required services.
+6. Run the vLLM services for embedding & generation models.
     - These services are resource-heavy. If you intend to use cloud models instead, disable the vLLM containers
       in the `docker-compose.yaml` file (i.e. comment out "vllm..." lines in the "services" section).
     - The vLLM containers might take a long time to start up, since they need to download the models on the first run.
@@ -47,7 +55,7 @@ The script will:
       the model is not required for finishing the initial setup. However, you should wait for it to be
       ready before interacting with the chatbot UI. You can check the status of all Docker containers
       using the `docker ps` command.
-6. Create default "test" project and upload the Alquist Insight docs as knowledge base.
+7. Create default "test" project and upload the Alquist Insight docs as knowledge base.
 
 After the script finishes execution, you should be able to open the chatbot with the default "test" project
 in your browser at `http://localhost:8020/`.
@@ -67,7 +75,7 @@ You can open the chatbot for your custom projects at `http://localhost:8020/?pro
 The easiest way to use the API is through the Swagger UI accessible at `http://localhost:9625/docs`.
 This UI also serves as the API documentation.
 
-You can use the `POST /project/` endpoint for creating a new project and the `POST /knowledge_base/` endpoints
+You can use the `POST /project/` endpoint for creating a new project and the `POST /knowledge_base/...` endpoints
 for uploading the documents. You can check the `scripts/deployment-full.sh` script (section
 `CREATE EXAMPLE PROJECT IF MISSING`) for an example how to use these endpoints.
 
@@ -79,10 +87,10 @@ managing the related knowledge base in a similar fashion as a regular file explo
 To be able to log in to the admin console, you will have to first set up KeyCloak and create a user:
 
 1. Log in to the KeyCloak admin console at `http://localhost:8080/` (default credentials `admin` & `admin123`).
-2. (OPTIONAL) Create a new realm (default name `alquist`).
+2. Create a new realm (default name `alquist`).
 3. Create a new client (default name `alquist-insight-development`).
-    - Use `http://localhost:8020/admin/*` as the valid redirect/post logout URI.
-    - Use `*` as allowed origins (i.e. allow all origins).
+    - Use `http://localhost:8020/admin/*` as the valid redirect/post logout URIs.
+    - Use `*` as allowed web origins (i.e. allow all origins).
 4. Create a new user/password combination.
 
 ToDo: Do this setup as part of the deployment script.

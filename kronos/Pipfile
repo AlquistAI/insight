@@ -7,19 +7,22 @@ verify_ssl = true
 python_version = "3.11"
 
 [packages]
-azure-identity = "*"
-azure-storage-blob = "*"
-bs4 = "*"
-cachetools = "*"
+azure-identity = "==1.25.2"
+azure-storage-blob = "==12.28.0"
+beautifulsoup4 = "==4.14.3"
+cachetools = "==7.0.1"
 common = { extras = ["jwt", "mongo"], path = "../common" }
-fastapi = "*"
-httpx = "*"
-minio = "*"
-pydantic = "*"
-pymongo = "*"
-python-dateutil = "*"
-python-multipart = "*"
-requests = "*"
-uvicorn = { extras = ["standard"], version = "*" }
+fastapi = "==0.131.0"
+httpx = "==0.28.1"
+minio = "==7.2.20"
+pydantic = "==2.12.5"
+pymongo = "==4.16.0"
+python-dateutil = "==2.9.0.post0"
+python-multipart = "==0.0.22"
+requests = "==2.32.5"
+uvicorn = { extras = ["standard"], version = "==0.41.0" }
 
 [dev-packages]
+
+[pipenv]
+sort_pipfile = true

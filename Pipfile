@@ -1,5 +1,5 @@
 # This Pipfile contains dependencies from all subprojects.
-# It should be used for convenience only during development.
+# It should be used for convenience only during development!
 # During deployment, each subproject uses its own dependencies.
 
 [[source]]
@@ -11,38 +11,41 @@ verify_ssl = true
 python_version = "3.11"
 
 [packages]
-azure-identity = "*"
-azure-storage-blob = "*"
-bs4 = "*"
-cachetools = "*"
+azure-identity = "==1.25.2"
+azure-storage-blob = "==12.28.0"
+beautifulsoup4 = "==4.14.3"
+cachetools = "==7.0.1"
 common = { editable = true, extras = ["es", "jwt", "mongo", "openai"], path = "common" }
 elasticsearch = "==8.17.2"
-fastapi = "*"
-gevent = "*"
-httpx = "*"
-langchain = "*"
-langchain-community = "*"
-langchain-openai = "*"
-langchain-text-splitters = "*"
-minio = "*"
-numpy = "*"
-openai = "*"
-openpyxl = "*"
-pydantic = "*"
-pymongo = "*"
-pymupdf = "*"
-python-dateutil = "*"
-python-docx = "*"
-python-multipart = "*"
-python-pptx = "*"
-requests = "*"
-tritonclient = { extras = ["http"], version = "*" }
-uvicorn = { extras = ["standard"], version = "*" }
+fastapi = "==0.131.0"
+gevent = "==25.9.1"
+httpx = "==0.28.1"
+langchain = "==1.2.10"
+langchain-community = "==0.4.1"
+langchain-openai = "==1.1.10"
+langchain-text-splitters = "==1.1.1"
+minio = "==7.2.20"
+numpy = "==2.4.2"
+openai = "==2.21.0"
+openpyxl = "==3.1.5"
+pydantic = "==2.12.5"
+pymongo = "==4.16.0"
+pymupdf = "==1.27.1"
+python-dateutil = "==2.9.0.post0"
+python-docx = "==1.2.0"
+python-multipart = "==0.0.22"
+python-pptx = "==1.0.2"
+requests = "==2.32.5"
+tritonclient = { extras = ["http"], version = "==2.65.0" }
+uvicorn = { extras = ["standard"], version = "==0.41.0" }
 
 [dev-packages]
-einops = "*"
-scikit-learn = "*"
-sentence-transformers = "*"
-torch = "*"
-tqdm = "*"
-transformers = "*"
+einops = "==0.8.2"
+scikit-learn = "==1.8.0"
+sentence-transformers = "==5.2.3"
+torch = "==2.10.0"
+tqdm = "==4.67.3"
+transformers = "==5.2.0"
+
+[pipenv]
+sort_pipfile = true
