@@ -1,6 +1,30 @@
 # Alquist Insight
 
-Monorepo for the Alquist Insight platform.
+Alquist Insight is an open-source platform designed for building and deploying production-ready RAG
+(Retrieval-Augmented Generation) chatbots on private or cloud infrastructure.
+
+Developed by the Alquist Research team (winners of the Amazon Alexa Prize Socialbot Grand Challenge),
+it provides a complete monorepo for managing knowledge bases, local LLM deployment, and conversational interfaces.
+It is specifically built to allow organizations to automate administrative tasks and customer support using their
+own data without relying on external cloud-based AI providers.
+
+Alquist Insight is structured into several core services including:
+
+- **Kronos**: API for project and knowledge base management.
+- **Maestro**: Chatbot interaction.
+- **Ragnarok**: The core RAG engine.
+- **Clients**: Dedicated Chatbot UI and Admin Console.
+
+Key technical specs:
+
+- **Infrastructure**: Built to run on-premise or in cloud using Docker and docker-compose.
+- **Models**: Supports local LLM deployment via vLLM (e.g. for embedding and generation models),
+  but can be configured for cloud models as well.
+- **Requirements**: Optimized for Linux-based systems with Nvidia GPUs (CUDA support) and high RAM
+  (120+ GiB for full local model deployment).
+- **Authentication**: Integrated with Keycloak for identity and access management.
+- **Capabilities**: Includes automated document processing, vector-based search, and a file-explorer-style
+  admin console for knowledge base management.
 
 ## Local Docker Deployment
 
