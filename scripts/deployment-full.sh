@@ -9,14 +9,11 @@ touch config.local.env
 source config.env
 source config.local.env
 
+KEYCLOAK_URL="${KEYCLOAK_URL_EXTERNAL:-http://localhost:8080}"
 KRONOS_URL="${KRONOS_URL_EXTERNAL:-http://localhost:9625}"
 MAESTRO_URL="${MAESTRO_URL_EXTERNAL:-http://localhost:8020}"
 RAGNAROK_URL="${RAGNAROK_URL_EXTERNAL:-http://localhost:9696}"
 VLLM_EMBEDDING_URL="http://localhost:8123"
-
-KEYCLOAK_URL="${KEYCLOAK_URL_EXTERNAL:-http://localhost:8080}"
-KEYCLOAK_USER="admin"
-KEYCLOAK_PASS="admin123"
 
 REALM_NAME="${KEYCLOAK_REALM:-alquist}"
 CLIENT_ID="${KEYCLOAK_CLIENT_ID:-alquist-insight-development}"
@@ -25,6 +22,22 @@ CLIENT_REDIRECT_URI="${MAESTRO_URL}/admin/*"
 DEFAULT_PROJECT_ID="test"
 DEFAULT_PROJECT_LANG="en"
 DEFAULT_PROJECT_LANG_CODE="en-US"
+
+# Env vars used in docker-compose.yaml
+REQUIRED_DC_VARS=(
+  KEYCLOAK_ADMIN_PASSWORD
+  KEYCLOAK_DB_PASSWORD
+  MINIO_ROOT_PASSWORD
+)
+
+for var in "${REQUIRED_DC_VARS[@]}"; do
+  : "${!var:?Environment variable $var is required}"
+  export "$var"
+done
+
+export KEYCLOAK_ADMIN_USER=${KEYCLOAK_ADMIN_USER:-admin}
+export KEYCLOAK_DB_USER=${KEYCLOAK_DB_USER:-keycloak}
+export MINIO_ROOT_USER=${MINIO_ROOT_USER:-admin}
 
 ### ASK THE USER FOR SUDO PERMISSIONS ###
 echo "Some commands in this script require sudo (e.g. for initial docker volume mount folders setup)."
@@ -152,8 +165,8 @@ fi
 #    login \
 #    --server "$KEYCLOAK_URL" \
 #    --realm master \
-#    --user "$KEYCLOAK_USER" \
-#    --password "$KEYCLOAK_PASS"
+#    --user "$KEYCLOAK_ADMIN" \
+#    --password "$KEYCLOAK_ADMIN_PASSWORD"
 
 ### CREATE REALM IF MISSING ###
 #echo "==== Creating realm '$REALM_NAME' if it does not exist ===="

@@ -6,7 +6,7 @@
     Utils for getting analytics data.
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from enum import Enum, unique
 from typing import Any
 
@@ -24,30 +24,19 @@ class TimeRange(str, Enum):
     WEEK = "week"
 
 
-def get_time_range(range_str: TimeRange = TimeRange.DAY) -> tuple[datetime, datetime]:
+def get_time_range(start_date: date, end_date: date) -> tuple[datetime, datetime]:
     """
     Get time range based on period.
 
-    :param range_str: one of ['hour', 'day', 'week', 'month', 'all']
-    :return: tuple of start & end time in UTC
+    :param start_date: start date of the required range
+    :param end_date: end date of the required range
+    :return: tuple of start & end time in UTC (biggest range)
     """
 
-    end_time = datetime.now(tz=tz.UTC)
-
-    if range_str == TimeRange.HOUR:
-        start_time = end_time - timedelta(hours=1)
-    elif range_str == TimeRange.DAY:
-        start_time = end_time - timedelta(hours=24)
-    elif range_str == TimeRange.WEEK:
-        start_time = end_time - timedelta(weeks=1)
-    elif range_str == TimeRange.MONTH:
-        start_time = end_time - timedelta(weeks=4)
-    elif range_str == TimeRange.ALL:
-        start_time = end_time - relativedelta(months=12)
-    else:
-        raise ValueError(f"Invalid time range: {range_str}")
-
-    return start_time, end_time
+    return (
+        datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc),
+        datetime.combine(end_date, datetime.max.time(), tzinfo=timezone.utc),
+    )
 
 
 def get_detailed_time_range(time_range: TimeRange) -> list[tuple[datetime, datetime]]:

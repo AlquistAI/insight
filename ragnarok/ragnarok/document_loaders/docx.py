@@ -105,15 +105,15 @@ class PyDOCXLoader:
     def load(self) -> list[LCDocument]:
 
         content, metadata = [], {}
-        doc = Document(self.file_path)
+        doc = Document(str(self.file_path))
 
         for block in iter_block_items(doc):
             if isinstance(block, Paragraph):
                 txt = paragraph_text(block)
                 content.append(txt)
 
-                if hasattr(block, "style") and getattr(block.style, "name") in STYLE_MAP:
-                    if (key := f"content_{STYLE_MAP[block.style.name]}") not in metadata:
+                if hasattr(block, "style") and (style_name := getattr(block.style, "name")) in STYLE_MAP:
+                    if (key := f"content_{STYLE_MAP[style_name]}") not in metadata:
                         metadata[key] = []
                     metadata[key].append(txt)
             else:

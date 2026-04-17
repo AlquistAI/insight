@@ -68,6 +68,8 @@ The script will:
     - Initial setup of volume mount folder ownership for `docker compose` services.
 4. Build Docker images for all apps.
 5. Prepare directories for docker compose and run all required services.
+    - The script also handles env vars required for docker compose.
+      These env vars can be changed using the `config.local.env` file.
 6. Run the vLLM services for embedding & generation models.
     - These services are resource-heavy. If you intend to use cloud models instead, disable the vLLM containers
       in the `docker-compose.yaml` file (i.e. comment out "vllm..." lines in the "services" section).
@@ -82,9 +84,10 @@ The script will:
 7. Create default "test" project and upload the Alquist Insight docs as knowledge base.
 
 After the script finishes execution, you should be able to open the chatbot with the default "test" project
-in your browser at `http://localhost:8020/`.
+in your browser at `http://localhost:8020/`. Note that the generation model can still take some time to load.
 
-After the first deployment, you can use the usual `docker compose [up|down|...]` commands to stop/run the deployment.
+After the first deployment, you can use the `docker compose down` command to stop the deployment.
+To start the deployment again, use the deployment script; it will skip all deployment tasks that are already finished.
 The data is persisted in the `data` folder.
 
 ### Knowledge Base Upload
@@ -120,6 +123,23 @@ To be able to log in to the admin console, you will have to first set up KeyCloa
 ToDo: Do this setup as part of the deployment script.
 
 You should now be able to log in to the admin console at `http://localhost:8020/admin/` using the created credentials.
+
+### External Access
+
+If you want external users to be able to access the Admin/Chatbot UI, you will need to expose the following
+services to them:
+
+- Keycloak (default port 8080) - required for Admin console access only
+- Kronos (default port 9625) - required for Admin console access only
+- Maestro (default port 8020)
+
+The URLs for these services then need to be set in `config.local.env` using the `<NAME>_URL_EXTERNAL` variables
+(e.g. `KRONOS_URL_EXTERNAL`).
+
+The Admin console uses several packages that require secure web communication to function, meaning that you will
+have to expose the services over `https`. For testing purposes this requirement can be bypassed by setting your
+browser to always treat these services as secure (e.g. in Chrome this can be achieved by using the flag
+`chrome://flags/#unsafely-treat-insecure-origin-as-secure`).
 
 ## Local Development
 

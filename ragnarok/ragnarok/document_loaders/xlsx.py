@@ -17,7 +17,7 @@ from langchain_text_splitters import TextSplitter
 DOC_FORMAT = (
     "SHEET NAME: {sheet_name}\n\n"
     "The following text is an Excel sheet content converted to the CSV format:\n\n"
-    "<csv>\n{csv_content}\n<\csv>"
+    "<csv>\n{csv_content}\n<\\csv>"
 )
 
 

@@ -8,7 +8,9 @@
     ToDo: Add JWT auth to these endpoints. They are called only from the admin console.
 """
 
-from fastapi import status
+from datetime import date
+
+from fastapi import Query, status
 from fastapi.exceptions import HTTPException
 from fastapi.routing import APIRouter
 
@@ -27,12 +29,17 @@ es_client = elastic.get_client()
     summary="Get total number of users for given time range",
 )
 @error_handler
-def get_session_events_errors(project_id: str, time_range: ua.TimeRange = ua.TimeRange.DAY):
+def get_session_events_errors(
+        project_id: str,
+        start_date: date = Query(default=date.today(), description="Start date", example="2026-03-01"),
+        end_date: date = Query(default=date.today(), description="End date", example="2026-03-05"),
+):
     """
     Get total number of users for given time range.
 
     :param project_id: project ID
-    :param time_range: time range
+    :param start_date: start date of the requested time range
+    :param end_date: end date of the requested time range
     :return: total number of users
     """
 
@@ -40,7 +47,7 @@ def get_session_events_errors(project_id: str, time_range: ua.TimeRange = ua.Tim
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "ElasticSearch client not initialized")
 
     # Get time range and fetch data
-    start_time, end_time = ua.get_time_range(time_range)
+    start_time, end_time = ua.get_time_range(start_date, end_date)
 
     # Build query and fetch events
     query_body = ua.build_unique_users_query(project_id, start_time, end_time)
@@ -131,12 +138,17 @@ def get_session_events_errors_count(project_id: str):
     summary="Get session analytics for project",
 )
 @error_handler
-def get_latest_logs(project_id: str, time_range: ua.TimeRange = ua.TimeRange.DAY):
+def get_latest_logs(
+        project_id: str,
+        start_date: date = Query(default=date.today(), description="Start date", example="2026-03-01"),
+        end_date: date = Query(default=date.today(), description="End date", example="2026-03-05"),
+):
     """
     Get session analytics for project.
 
     :param project_id: project ID
-    :param time_range: time range
+    :param start_date: start date of the required range
+    :param end_date: end date of the required range
     :return: list of sessions with timestamps, query counts and feedback metrics
     """
 
@@ -144,7 +156,7 @@ def get_latest_logs(project_id: str, time_range: ua.TimeRange = ua.TimeRange.DAY
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "ElasticSearch client not initialized")
 
     # Get time range and fetch data
-    start_time, end_time = ua.get_time_range(time_range)
+    start_time, end_time = ua.get_time_range(start_date, end_date)
     start_response = es_client.search(
         index=CONFIG.ES_INDEX_LOGS,
         body=ua.build_start_session_query(start_time, end_time, project_id),
@@ -164,12 +176,17 @@ def get_latest_logs(project_id: str, time_range: ua.TimeRange = ua.TimeRange.DAY
     summary="Get aggregated statistics for project",
 )
 @error_handler
-def get_project_stats_summary(project_id: str, time_range: ua.TimeRange = ua.TimeRange.DAY):
+def get_project_stats_summary(
+        project_id: str,
+        start_date: date = Query(default=date.today(), description="Start date", example="2026-03-01"),
+        end_date: date = Query(default=date.today(), description="End date", example="2026-03-05"),
+):
     """
     Get aggregated statistics for project.
 
     :param project_id: project ID
-    :param time_range: time range
+    :param start_date: start date of the required range
+    :param end_date: end date of the required range
     :return: total queries, feedback counts and unique sessions
     """
 
@@ -177,7 +194,7 @@ def get_project_stats_summary(project_id: str, time_range: ua.TimeRange = ua.Tim
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "ElasticSearch client not initialized")
 
     # Get time range and fetch data
-    start_time, end_time = ua.get_time_range(time_range)
+    start_time, end_time = ua.get_time_range(start_date, end_date)
     session_count_response = es_client.search(
         index=CONFIG.ES_INDEX_LOGS,
         body=ua.build_session_count_query(start_time, end_time, project_id),
@@ -198,12 +215,17 @@ def get_project_stats_summary(project_id: str, time_range: ua.TimeRange = ua.Tim
     summary="Get aggregated statistics for project within specific timerange",
 )
 @error_handler
-def get_project_stats_timerange_summary(project_id: str, time_range: ua.TimeRange = ua.TimeRange.DAY):
+def get_project_stats_timerange_summary(
+        project_id: str,
+        start_date: date = Query(default=date.today(), description="Start date", example="2026-03-01"),
+        end_date: date = Query(default=date.today(), description="End date", example="2026-03-05"),
+):
     """
     Get aggregated statistics for project within specific timerange.
 
     :param project_id: project ID
-    :param time_range: time range
+    :param start_date: start date of the required range
+    :param end_date: end date of the required range
     :return: total queries, feedback counts and unique sessions
     """
 
@@ -213,7 +235,7 @@ def get_project_stats_timerange_summary(project_id: str, time_range: ua.TimeRang
     res = []
 
     # Get time range and fetch data
-    for start_time, end_time in ua.get_detailed_time_range(time_range):
+    for start_time, end_time in ua.get_detailed_time_range(start_date, end_date):
         session_count_response = es_client.search(
             index=CONFIG.ES_INDEX_LOGS,
             body=ua.build_session_count_query(start_time, end_time, project_id),

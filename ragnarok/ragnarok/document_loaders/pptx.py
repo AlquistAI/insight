@@ -70,7 +70,7 @@ def table_text(table) -> str:
     return table_format(data)
 
 
-def shape_text(shape) -> str | None:
+def shape_text(shape) -> str:
     """
     Retrieve text from a ppt shape object and process it.
 
@@ -82,7 +82,7 @@ def shape_text(shape) -> str | None:
         return table_text(shape)
 
     if not shape.has_text_frame:
-        return None
+        return ""
 
     text = [p.text.strip() for p in shape.text_frame.paragraphs]
     text = [" ".join(p.split()) for p in text if p]
@@ -97,7 +97,7 @@ class PyPPTXLoader:
     def load(self) -> list[Document]:
 
         documents = []
-        prs = Presentation(self.file_path)
+        prs = Presentation(str(self.file_path))
 
         for page, slide in enumerate(prs.slides):
             shapes = unwrap_group(slide)

@@ -150,7 +150,7 @@ class Config(BaseSettings):
     ES_INDEX_LOGS: str = "alquist-insight-develop-logs"
     ES_MAX_VECTOR_DIM: int = 4096
 
-    KEYCLOAK_URL: AnyUrl | None = "http://keycloak.keycloak.svc.cluster.local:8080"
+    KEYCLOAK_URL: AnyUrl = "http://keycloak-headless.keycloak.svc.cluster.local:8080"
     KEYCLOAK_REALM: str = "alquist"
     KEYCLOAK_CLIENT_ID: str = "alquist-insight-development"
 

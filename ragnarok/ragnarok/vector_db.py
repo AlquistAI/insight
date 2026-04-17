@@ -8,11 +8,9 @@
 
 import copy
 import hashlib
-import os
 import time
 import uuid
 from datetime import datetime
-from tempfile import NamedTemporaryFile
 from typing import Any
 
 import requests
@@ -21,10 +19,8 @@ from dateutil import tz
 from elastic_transport.client_utils import DefaultType as ESDefaultType
 from elasticsearch import Elasticsearch, helpers
 from langchain.embeddings.base import Embeddings
-from langchain_community.document_loaders import BSHTMLLoader, PyMuPDFLoader, TextLoader
 from langchain_community.vectorstores import ElasticsearchStore
 from langchain_core.documents import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from common.config import CONFIG, DF, PATH_ES_CERT
 from common.core import get_component_logger
@@ -35,7 +31,7 @@ from common.models.project import EmbeddingModelSettings, RetrievalSettings
 from common.utils import exceptions as exc
 from common.utils.misc import dict_to_dot_keys, generate_batches
 from common.utils.singleton import Singleton
-from ragnarok.document_loaders import OpenPyXLLoader, PyDOCXLoader, PyPPTXLoader
+from ragnarok.document_loaders import parse_file
 from ragnarok.utils import highlight as hl, lc
 
 logger = get_component_logger()
@@ -45,31 +41,38 @@ DEFAULT_INDEX_SETTINGS = {
         "properties": {
             "metadata": {
                 "properties": {
-                    # ID fields
+                    # Internal fields
                     "kb_id": {"type": "keyword", "ignore_above": 256},
                     "project_id": {"type": "keyword", "ignore_above": 256},
-                    "user_id": {"type": "keyword", "ignore_above": 256},
 
-                    # Text/keyword fields
                     "embedding_model": {"type": "keyword", "ignore_above": 256},
                     "language": {"type": "keyword", "ignore_above": 256},
-                    "source_file": {"type": "keyword", "ignore_above": 1024},
+                    "source_file": {"type": "keyword", "index": False},
                     "source_type": {"type": "keyword", "ignore_above": 256},
 
-                    # Non-text fields
+                    "batch_id": {"type": "keyword", "ignore_above": 256},
+                    "retries": {"type": "integer"},
+
                     "created_at": {"type": "date"},
+
+                    # Additional document loader fields
+                    "author": {"type": "keyword", "ignore_above": 256},
+                    "keywords": {"type": "text", "analyzer": "standard_lowercase"},
+                    "subject": {"type": "text", "analyzer": "standard_lowercase"},
+                    "title": {"type": "text", "analyzer": "standard_lowercase"},
+
+                    "chunk_idx": {"type": "integer"},
+                    "chunk_size": {"type": "integer", "index": False},
+                    "chunk_overlap": {"type": "integer", "index": False},
+
                     "page": {"type": "integer"},
                     "total_pages": {"type": "integer"},
 
-                    # Custom object field - gets populated dynamically
-                    "custom": {
-                        "properties": {
-                            "program_name": {
-                                "type": "text",
-                                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
-                            },
-                        },
-                    },
+                    "creationdate": {"type": "date"},
+                    "moddate": {"type": "date"},
+
+                    # All other fields are getting indexed dynamically (including 'custom' metadata).
+                    # I.e. ES tries to determine the field type and creates a mapping for it automatically.
                 },
             },
             "text": {
@@ -362,30 +365,25 @@ class VectorStore(metaclass=Singleton):
         :return: metadata of the uploaded knowledge base
         """
 
-        emb_settings = emb_settings or EmbeddingModelSettings()
+        emb_settings: EmbeddingModelSettings = emb_settings or EmbeddingModelSettings()
         self._prepare_embedding_model(emb_settings=emb_settings)
-        documents = self._parse_file(content=content, source_type=source_type)
+        documents = parse_file(content=content, source_type=source_type)
 
-        metadata = {
+        metadata_general = {
             "kb_id": kb_id,
             "project_id": project_id,
-            "source_file": source_file,
-            "source_type": source_type.value,
-            "language": language,
             "embedding_model": emb_settings.name,
+            "language": language,
+            "source_file": source_file,
+            "source_type": source_type,
             "custom": custom_metadata or {},
-            "created_at": datetime.now(tz=tz.UTC).isoformat(),
+            "created_at": datetime.now(tz=tz.UTC),
         }
 
         for doc in documents:
-            doc.metadata = {
-                "author": doc.metadata.get("author", ""),
-                "page": doc.metadata.get("page", 0) + 1,
-                "title": doc.metadata.get("title", ""),
-                "total_pages": doc.metadata.get("total_pages", 1),
-            }
-
-            doc.metadata.update(metadata)
+            metadata = me.DocumentLoaderMetadata.model_validate(doc.metadata).model_dump()
+            metadata.update(metadata_general)
+            doc.metadata = me.KBMetadata.model_validate(metadata).model_dump(mode="json")
 
             # Add source file name/path to the content
             doc.page_content = f"SOURCE FILE: {source_file}\n\n{doc.page_content}"
@@ -441,69 +439,6 @@ class VectorStore(metaclass=Singleton):
             enable_highlights=enable_highlights,
         )
 
-    def _parse_file(self, content: bytes, source_type: SourceType) -> list[Document]:
-        """
-        Parse file contents.
-
-        :param content: binary file content
-        :param source_type: type/format of the content (e.g. PDF)
-        :return: parsed documents
-        """
-
-        tmp_file = NamedTemporaryFile(delete=False, suffix=f".{source_type.value}")
-        tmp_file.write(content)
-        tmp_file.close()
-
-        if source_type == SourceType.DOCX:
-            documents = self._parse_docx(tmp_file.name)
-        elif source_type == SourceType.HTML:
-            documents = self._parse_html(tmp_file.name)
-        elif source_type == SourceType.PDF:
-            documents = self._parse_pdf(tmp_file.name)
-        elif source_type == SourceType.PPTX:
-            documents = self._parse_pptx(tmp_file.name)
-        elif source_type == SourceType.TXT:
-            documents = self._parse_txt(tmp_file.name)
-        elif source_type == SourceType.XLSX:
-            documents = self._parse_xlsx(tmp_file.name)
-        else:
-            raise ValueError(f"Unsupported source type: {source_type.value}")
-
-        os.remove(tmp_file.name)
-        return documents
-
-    @staticmethod
-    def _parse_docx(path: str, chunk_size: int = 2500, chunk_overlap: int = 200) -> list[Document]:
-        loader = PyDOCXLoader(path)
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-        return loader.load_and_split(text_splitter)
-
-    @staticmethod
-    def _parse_html(path: str, chunk_size: int = 2500, chunk_overlap: int = 200) -> list[Document]:
-        loader = BSHTMLLoader(path)
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-        return loader.load_and_split(text_splitter)
-
-    @staticmethod
-    def _parse_pdf(path: str) -> list[Document]:
-        # text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-        # return PyMuPDFLoader(path).load_and_split(text_splitter)
-        return PyMuPDFLoader(path).load()
-
-    @staticmethod
-    def _parse_pptx(path: str) -> list[Document]:
-        return PyPPTXLoader(path).load()
-
-    @staticmethod
-    def _parse_txt(path: str, chunk_size: int = 2500, chunk_overlap: int = 200) -> list[Document]:
-        loader = TextLoader(path)
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-        return loader.load_and_split(text_splitter)
-
-    @staticmethod
-    def _parse_xlsx(path: str) -> list[Document]:
-        return OpenPyXLLoader(path).load()
-
     @log_elapsed_time
     def knn_search(
             self,
@@ -524,7 +459,7 @@ class VectorStore(metaclass=Singleton):
         :return: search operation result
         """
 
-        settings = settings or RetrievalSettings()
+        settings: RetrievalSettings = settings or RetrievalSettings()
         embeddings = self._prepare_embedding_model(emb_settings=settings.model)
         ftr = [{"term": {"metadata.project_id": project_id}}]
 
@@ -550,7 +485,7 @@ class VectorStore(metaclass=Singleton):
         )
 
         if res["hits"]["total"]["value"] == 0:
-            raise exc.DBRecordNotFound(kb_ids)
+            raise exc.RetrievalError("KNN search did not return any matches")
         return [me.KBEntry.model_validate(x) for x in res["hits"]["hits"]]
 
     @log_elapsed_time
@@ -573,7 +508,7 @@ class VectorStore(metaclass=Singleton):
         :return: search operation result
         """
 
-        settings = settings or RetrievalSettings()
+        settings: RetrievalSettings = settings or RetrievalSettings()
         ftr = [{"term": {"metadata.project_id": project_id}}]
 
         if kb_ids:
@@ -655,7 +590,7 @@ class VectorStore(metaclass=Singleton):
             size=0,
         )
 
-        if not (buckets := res["aggregations"]["kb_ids"]["buckets"]):
+        if not (buckets := res["aggregations"]["kb_ids"]["buckets"]) and project_id:
             raise exc.DBRecordNotFound(project_id)
         return [x["key"] for x in buckets]
 
@@ -710,6 +645,7 @@ class VectorStore(metaclass=Singleton):
             },
         )
 
+        # noinspection PyTypeChecker
         return dict(res.body)
 
     def delete_kb(self, kb_id: str, project_id: str | None = None, raise_not_found: bool = False) -> tuple[int, int]:
@@ -796,7 +732,7 @@ class VectorStore(metaclass=Singleton):
                 index=index_name,
                 query={"bool": {"must": [{"match": {"text": query}}], "filter": ftr}},
                 size=l0_size,
-                _source=source_includes,
+                source_includes=source_includes,
             )
 
         return l0_resp.get("hits", {}).get("hits", [])
@@ -885,8 +821,8 @@ class VectorStore(metaclass=Singleton):
             project_id: str,
             source_file: str,
             page: int,
-            emb_settings: EmbeddingModelSettings | None = None,
-            query: str | None = None,
+            emb_settings: EmbeddingModelSettings,
+            query: str,
             k: int = 10,
             num_candidates: int = 200,
     ) -> list[dict[str, Any]]:

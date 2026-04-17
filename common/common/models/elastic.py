@@ -16,15 +16,29 @@ from common.models.enums import SourceType
 from common.models.validation import Language, utc_now
 
 
-class KBMetadata(CustomBaseModel):
-    project_id: str
+class DocumentLoaderMetadata(CustomBaseModel):
+    author: str = ""
+    keywords: str = ""
+    subject: str = ""
+    title: str = ""
+
+    chunk_idx: int = 0
+    chunk_size: int | None = None
+    chunk_overlap: int | None = None
+
+    page: int = 1
+    total_pages: int = 1
+
+    creationdate: datetime | None = None
+    moddate: datetime | None = None
+
+
+class KBMetadata(DocumentLoaderMetadata):
     kb_id: str
+    project_id: str | None = None
 
     embedding_model: str
     language: Language
-    page: int | None = None
-    total_pages: int = 1
-
     source_file: str | None = None
     source_type: SourceType = SourceType.PDF
 
