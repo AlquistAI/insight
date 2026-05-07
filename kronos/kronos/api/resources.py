@@ -19,6 +19,7 @@ from common.models.enums import RESOURCE_TO_MIME, ResourceType, SOURCE_TO_MIME, 
 from common.utils import exceptions as exc
 from common.utils.api import error_handler
 from kronos.api import knowledge_base as kb_api
+from kronos.services.db.mongo import projects as db_projects
 from kronos.services.storage import get_storage
 from kronos.services.storage.base import DIR_PROJECT, get_resource_dir, get_resource_fn, get_resource_paths
 
@@ -190,6 +191,7 @@ def post_resource(
         source_type=source_type,
     )[0]
 
+    db_projects.touch_project(project_id=project_id)
     storage.post_file(file_path=file_path, content=file.file.read())
     return file_path
 
@@ -227,6 +229,7 @@ def init_resource(
 
     if updated := _init_dialogue_fsm(content=content, updates=payload):
         file_path = get_resource_paths(resource_type=resource_type, project_id=project_id)[0]
+        db_projects.touch_project(project_id=project_id)
         storage.post_file(file_path=file_path, content=updated)
         return file_path
 
@@ -276,6 +279,7 @@ def delete_resource(
         source_type=source_type,
     )[0]
 
+    db_projects.touch_project(project_id=project_id)
     return ma.DeletedCount(deleted_storage_blobs=storage.delete_file(file_path=file_path))
 
 

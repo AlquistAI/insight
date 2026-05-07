@@ -14,18 +14,18 @@ from pydantic import Field
 from common.models.base import CustomBaseModel
 from common.models.validation import Language, MongoID, object_id_str, utc_now
 
-_T_VER_SESSIONS = Literal[1]
+_T_VER_SESSIONS = Literal[2]
 VER_SESSIONS: int = get_args(_T_VER_SESSIONS)[0]
 
 
 class Session(CustomBaseModel):
     id: MongoID = Field(alias="_id", default_factory=object_id_str)
-
     project_id: str | None = None
     user_id: str | None = None
 
     name: str = ""
     description: str = ""
+    first_user_query: str = ""
     language: Language | None = None
 
     document_id: str | None = None

@@ -113,7 +113,6 @@ def migrate_mongo_data():
 def _migrate_kb(old: dict[str, Any]) -> KnowledgeBase:
     """Migrate knowledge base data to the current version."""
 
-    # version 2 changes
     if old["model_version"] < 2:
         # normalize language
         old["language"] = "cs-CZ" if old["language"] == "cs" else "en-US"
@@ -124,6 +123,10 @@ def _migrate_kb(old: dict[str, Any]) -> KnowledgeBase:
 
 def _migrate_project(old: dict[str, Any]) -> Project:
     """Migrate project data to the current version."""
+
+    if old["model_version"] < 4:
+        # set modified_at field to created_at
+        old["modified_at"] = old["created_at"]
 
     old["model_version"] = VER_PROJECTS
     return Project.model_validate(old)

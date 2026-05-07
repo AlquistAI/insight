@@ -216,6 +216,7 @@ def upload_file_kb(
     )[0]
     storage.post_file(file_path=file_path, content=file.file.read())
 
+    db_projects.touch_project(project_id=project_id)
     db_kb.delete_kb(kb_id=data.id, raise_not_found=False)
     db_kb.create_kb(data=data)
     return db_kb.get_kb(kb_id=data.id)
@@ -465,6 +466,7 @@ def update_kb(kb_id: str, data: KnowledgeBase) -> KnowledgeBase:
     ragnarok.update_kb_metadata(kb_id=kb_id, metadata=mar.KBMetadataUpdate.model_validate(data_updated))
 
     data.id = kb_id
+    db_projects.touch_project(project_id=data.project_id)
     db_kb.update_kb(data=data)
     return db_kb.get_kb(kb_id=kb_id)
 
@@ -510,6 +512,7 @@ def delete_kb(project_id: str, kb_id: str) -> ma.DeletedCount:
     deleted.deleted_storage_blobs = storage.delete_folder(
         folder_path=get_resource_dir(resource_type=ResourceType.SOURCE_KB, resource_id=kb_id, project_id=project_id),
     )
+    db_projects.touch_project(project_id=project_id)
     return deleted
 
 

@@ -61,6 +61,7 @@ async def get_kb(project_id: str) -> list[dict[str, Any]]:
             params={
                 "project_id": project_id,
                 "fields": "name,source_file,source_type,enable_highlights",
+                "sort_by": "source_file",
                 "per_page": 0,
             },
             headers=HEADERS,

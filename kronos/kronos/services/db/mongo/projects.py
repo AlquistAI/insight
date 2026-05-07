@@ -13,6 +13,7 @@ from pymongo.errors import DuplicateKeyError
 
 from common.models.enums import Coll
 from common.models.project import Project
+from common.models.validation import utc_now
 from common.services.mongo import prepare_projection, process_filter
 from common.utils import exceptions as exc
 from kronos.services.db.mongo.connection import get_coll
@@ -67,9 +68,25 @@ def update_project(data: Project):
     :param data: project data
     """
 
+    data.modified_at = utc_now()
     res = COLL_PROJECTS.update_one({"_id": data.id}, {"$set": data.model_dump(exclude_unset=True)})
     if not res.acknowledged or res.matched_count != 1:
         raise exc.DBRecordNotFound(_id=data.id) from None
+
+
+def touch_project(project_id: str | None):
+    """
+    Update the modified time of an existing project in the DB to current time.
+
+    :param project_id: project ID (skipped if empty)
+    """
+
+    if not project_id:
+        return
+
+    res = COLL_PROJECTS.update_one({"_id": project_id}, {"$set": {"modified_at": utc_now()}})
+    if not res.acknowledged or res.matched_count != 1:
+        raise exc.DBRecordNotFound(_id=project_id) from None
 
 
 def delete_project(project_id: str, raise_not_found: bool = False) -> int:

@@ -60,6 +60,11 @@ def parse_file(content: bytes, source_type: SourceType) -> list[Document]:
         document.metadata["chunk_idx"] = idx
         document.metadata["page"] = document.metadata.get("page", 0) + 1
 
+    # FixMe: Handle different formats of the date strings. Now it is breaking in pydantic models.
+    for document in documents:
+        for field in ("creationdate", "moddate"):
+            document.metadata.pop(field, None)
+
     return documents
 
 

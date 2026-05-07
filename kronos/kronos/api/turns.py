@@ -13,7 +13,7 @@ from fastapi.routing import APIRouter
 from common.models import api as ma
 from common.models.turn import Turn
 from common.utils.api import error_handler
-from kronos.services.db.mongo import turns as db_turns
+from kronos.services.db.mongo import sessions as db_sessions, turns as db_turns
 
 router = APIRouter()
 
@@ -99,6 +99,7 @@ def create_turn(data: Turn) -> Turn:
     :return: created turn data
     """
 
+    db_sessions.set_first_user_query(session_id=data.session_id, query=data.user_query)
     turn_id = db_turns.create_turn(data=data)
     return db_turns.get_turn(turn_id=turn_id)
 

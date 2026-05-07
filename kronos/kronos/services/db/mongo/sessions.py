@@ -129,3 +129,15 @@ def list_sessions(
 
     res = list(res) if projection else [Session.model_validate(x) for x in res]
     return res, total
+
+
+def set_first_user_query(session_id: str, query: str):
+    """
+    Set the first user query in the session data.
+    Skip if the query is already set.
+
+    :param session_id: session ID
+    :param query: user query
+    """
+
+    COLL_SESSIONS.update_one({"_id": session_id, "first_user_query": ""}, {"$set": {"first_user_query": query}})
