@@ -17,7 +17,7 @@ from common.config import CONFIG
 from common.models import api_kronos as mak, api_ragnarok as mar, elastic as me
 from common.utils.api import error_handler, error_handler_async
 from kronos.services import ragnarok
-from kronos.services.db.mongo.knowledge_base import get_kb_bulk, get_kb_cached
+from kronos.services.db.mongo.knowledge_base import get_kb_bulk
 from kronos.services.db.mongo.projects import get_project_cached
 from kronos.services.db.mongo.turns import list_turns
 
@@ -71,8 +71,8 @@ async def rag_pipeline(project_id: str, payload: mak.RAGPayload, session_id: str
 
     return mak.RAGResponse(
         generated_text=res.generated_text,
+        highlights=res.highlights,
         matched_chunks=_update_matched_chunks(res.matched_chunks),
-        top_match=_update_top_match(res.top_match),
     )
 
 
@@ -105,9 +105,10 @@ def rag_pipeline_stream(project_id: str, payload: mak.RAGPayload, session_id: st
       - `is_last_chunk`: (bool) whether the current chunk is the last chunk
       - `text`: (str) generated text chunk or empty string
 
-    Additional response object attributes, sent as the first chunk with chunk_index -1:
-      - `matched_chunks`: (list) list of matched document chunks using cosine similarity
-      - `top_match`: (dict) data of the top matched document (see non-streamed version for details)
+    Additional response object attributes, sent as the last chunk:
+      - `highlights`: (list) data used for source snippet highlighting
+      - `matched_chunks`: (list) matched document chunks
+      - `text_full`: (str) full version of the streamed text
 
     :param project_id: project ID
     :param payload: payload with user query and additional settings (see description)
@@ -166,34 +167,13 @@ def _update_matched_chunks(
     return [x.model_dump(mode="json") for x in matched_chunks] if dict_input else matched_chunks
 
 
-def _update_top_match(top_match: mar.RAGTopMatch | dict[str, Any]) -> mak.RAGTopMatch | dict[str, Any]:
-    """Update top matched chunk metadata with data from DB."""
-
-    if not (dict_input := isinstance(top_match, dict)):
-        top_match = top_match.model_dump()
-    top_match = mak.RAGTopMatch.model_validate(top_match)
-
-    top_match_data = get_kb_cached(kb_id=top_match.kb_id)
-    top_match.name = top_match_data.name
-    top_match.description = top_match_data.description
-
-    return top_match.model_dump(mode="json") if dict_input else top_match
-
-
 def _streamed_rag_response(text_gen: Generator[str, None, None]) -> Generator[str, None, None]:
     """Generate ndjson chunks for the streamed RAG response."""
 
-    metadata_chunk_updated = False
-
     for chunk in text_gen:
-        if not metadata_chunk_updated:
-            decoded_chunk = json.loads(chunk)
+        if not (decoded_chunk := json.loads(chunk))["is_last_chunk"]:
+            yield f"{chunk}\n"
+            continue
 
-            if decoded_chunk.get("chunk_index") == -1:
-                metadata_chunk_updated = True
-                decoded_chunk["matched_chunks"] = _update_matched_chunks(decoded_chunk.get("matched_chunks"))
-                decoded_chunk["top_match"] = _update_top_match(decoded_chunk.get("top_match"))
-                yield f"{json.dumps(decoded_chunk)}\n"
-                continue
-
-        yield f"{chunk}\n"
+        decoded_chunk["matched_chunks"] = _update_matched_chunks(decoded_chunk.get("matched_chunks"))
+        yield f"{json.dumps(decoded_chunk)}\n"

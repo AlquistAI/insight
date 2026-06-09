@@ -8,6 +8,7 @@
 
 import json
 import uuid
+from typing import Any
 
 from fastapi import status
 from fastapi.datastructures import UploadFile
@@ -152,6 +153,7 @@ def upload_file_kb(
 
     if custom_metadata:
         custom_metadata = json.loads(custom_metadata)
+    custom_metadata: dict[str, Any]
 
     return VS.upload_file(
         content=content,
@@ -202,6 +204,7 @@ def upload_url_kb(
 
     if custom_metadata:
         custom_metadata = json.loads(custom_metadata)
+    custom_metadata: dict[str, Any]
 
     return VS.upload_url(
         url=url,

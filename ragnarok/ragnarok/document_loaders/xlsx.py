@@ -9,10 +9,11 @@
 import csv
 import io
 from pathlib import Path
+from typing import Iterator
 
 import openpyxl
+from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
-from langchain_text_splitters import TextSplitter
 
 DOC_FORMAT = (
     "SHEET NAME: {sheet_name}\n\n"
@@ -21,14 +22,13 @@ DOC_FORMAT = (
 )
 
 
-class OpenPyXLLoader:
+class OpenPyXLLoader(BaseLoader):
 
     def __init__(self, file_path: str | Path):
         self.file_path = file_path
 
-    def load(self) -> list[Document]:
+    def lazy_load(self) -> Iterator[Document]:
 
-        documents = []
         wb = openpyxl.load_workbook(self.file_path)
 
         for ws in wb.worksheets:
@@ -39,9 +39,4 @@ class OpenPyXLLoader:
                 writer.writerow([cell.value for cell in row])
 
             content = DOC_FORMAT.format(sheet_name=ws.title, csv_content=output.getvalue())
-            documents.append(Document(page_content=content, metadata={"title": ws.title}))
-
-        return documents
-
-    def load_and_split(self, text_splitter: TextSplitter) -> list[Document]:
-        return text_splitter.split_documents(self.load())
+            yield Document(page_content=content, metadata={"title": ws.title})

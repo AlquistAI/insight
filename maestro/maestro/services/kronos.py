@@ -165,8 +165,7 @@ def query_rag(
     del headers["accept"]
 
     async def response_generator() -> AsyncGenerator[str, Any]:
-        full_text = ""
-        matched_chunks = []
+        last_chunk = {}
 
         async with httpx.AsyncClient() as client:
             async with client.stream(
@@ -183,22 +182,23 @@ def query_rag(
                     if not line:
                         continue
 
-                    decoded_line: dict = json.loads(line)
-                    full_text += decoded_line.get("text", "")
-
-                    if not matched_chunks and decoded_line.get("chunk_index") == -1:
-                        matched_chunks, top_match = decoded_line["matched_chunks"], decoded_line["top_match"]
-                        logger.debug("top_kb_id: %s, top_page: %s", top_match["kb_id"], top_match["page"])
+                    if (decoded_line := json.loads(line))["is_last_chunk"]:
+                        last_chunk = decoded_line
 
                     yield f"{line}\n"
 
-        logger.info("answer", extra={"answer": full_text})
+        matched_chunks = last_chunk.get("matched_chunks") or []
+        text_full = last_chunk.get("text_full", "")
+        top_match = matched_chunks[0] if matched_chunks else {}
+        logger.debug("top_kb_id: %s, top_page: %s", top_match.get("kb_id"), top_match.get("page"))
+        logger.info("answer", extra={"answer": text_full})
+
         await create_turn(
             session_id=session_id,
             project_id=project_id,
             user_id=user_id,
             user_query=query,
-            system_response=full_text,
+            system_response=text_full,
             matched_kb_ids=[x["_source"]["metadata"]["kb_id"] for x in matched_chunks],
             matched_pages=[x["_source"]["metadata"]["page"] for x in matched_chunks],
         )
@@ -253,14 +253,15 @@ async def query_rag_top_n(
 
     res.raise_for_status()
     res = res.json()
+    matched_chunks = res["matched_chunks"] if return_matched_chunks else []
 
     await create_turn(
         session_id=session_id,
         project_id=project_id,
         user_id=user_id,
         user_query=query,
-        matched_kb_ids=[x["_source"]["metadata"]["kb_id"] for x in res["matched_chunks"]],
-        matched_pages=[x["_source"]["metadata"]["page"] for x in res["matched_chunks"]],
+        matched_kb_ids=[x["_source"]["metadata"]["kb_id"] for x in matched_chunks],
+        matched_pages=[x["_source"]["metadata"]["page"] for x in matched_chunks],
     )
 
     return res
@@ -305,7 +306,7 @@ async def create_session(
 
 
 async def create_turn(
-        session_id: str,
+        session_id: str | None,
         project_id: str | None = None,
         user_id: str | None = None,
         user_query: str = "",

@@ -6,16 +6,18 @@
     Microsoft Word (docx) document loader.
 """
 
+from collections import defaultdict
 from pathlib import Path
+from typing import Iterator
 
-from docx import Document
+from docx import Document as DOCXDocument
 from docx.document import Document as Doc
 from docx.oxml.table import CT_Tbl
 from docx.oxml.text.paragraph import CT_P
 from docx.table import Table
 from docx.text.paragraph import Paragraph
-from langchain_core.documents import Document as LCDocument
-from langchain_text_splitters import TextSplitter
+from langchain_core.document_loaders import BaseLoader
+from langchain_core.documents import Document
 
 STYLE_MAP = {
     "Title": "title",
@@ -97,25 +99,22 @@ def paragraph_text(paragraph) -> str:
     return text
 
 
-class PyDOCXLoader:
+class PyDOCXLoader(BaseLoader):
 
     def __init__(self, file_path: str | Path):
         self.file_path = file_path
 
-    def load(self) -> list[LCDocument]:
+    def lazy_load(self) -> Iterator[Document]:
 
-        content, metadata = [], {}
-        doc = Document(str(self.file_path))
+        content = []
+        metadata = defaultdict(list)
+        doc = DOCXDocument(str(self.file_path))
 
         for block in iter_block_items(doc):
             if isinstance(block, Paragraph):
-                txt = paragraph_text(block)
-                content.append(txt)
-
+                content.append(txt := paragraph_text(block))
                 if hasattr(block, "style") and (style_name := getattr(block.style, "name")) in STYLE_MAP:
-                    if (key := f"content_{STYLE_MAP[style_name]}") not in metadata:
-                        metadata[key] = []
-                    metadata[key].append(txt)
+                    metadata[f"content_{STYLE_MAP[style_name]}"].append(txt)
             else:
                 content.extend(table_text(block))
 
@@ -123,7 +122,4 @@ class PyDOCXLoader:
         content = "\n".join(content)
         metadata = {k: "\n".join(set(v)) for k, v in metadata.items()}
 
-        return [LCDocument(page_content=content, metadata=metadata)]
-
-    def load_and_split(self, text_splitter: TextSplitter) -> list[LCDocument]:
-        return text_splitter.split_documents(self.load())
+        yield Document(page_content=content, metadata=metadata)

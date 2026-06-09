@@ -14,7 +14,7 @@ from pydantic import Field
 from common.models.base import CustomBaseModel
 from common.models.validation import Language, MongoID, object_id_str, utc_now
 
-_T_VER_SESSIONS = Literal[2]
+_T_VER_SESSIONS = Literal[3]
 VER_SESSIONS: int = get_args(_T_VER_SESSIONS)[0]
 
 

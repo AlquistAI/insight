@@ -72,6 +72,7 @@ class Coll(str, Enum):
     """Collection names in MongoDB."""
 
     KB = "knowledge_base"
+    LOCKS = "locks"
     PROJECTS = "projects"
     SESSIONS = "sessions"
     TURNS = "turns"
@@ -102,6 +103,7 @@ class SourceType(str, Enum):
 
     DOCX = "docx"
     HTML = "html"
+    MD = "md"
     PDF = "pdf"
     PPTX = "pptx"
     TXT = "txt"
@@ -119,6 +121,7 @@ RESOURCE_TO_MIME = {
 SOURCE_TO_MIME = {
     SourceType.DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     SourceType.HTML: "text/html",
+    SourceType.MD: "text/markdown",
     SourceType.PDF: "application/pdf",
     SourceType.PPTX: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     SourceType.TXT: "text/plain",

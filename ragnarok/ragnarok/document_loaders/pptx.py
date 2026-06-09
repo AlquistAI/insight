@@ -7,9 +7,10 @@
 """
 
 from pathlib import Path
+from typing import Iterator
 
+from langchain_core.document_loaders import BaseLoader
 from langchain_core.documents import Document
-from langchain_text_splitters import TextSplitter
 from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 
@@ -89,17 +90,16 @@ def shape_text(shape) -> str:
     return "\n".join(text)
 
 
-class PyPPTXLoader:
+class PyPPTXLoader(BaseLoader):
 
     def __init__(self, file_path: str | Path):
         self.file_path = file_path
 
-    def load(self) -> list[Document]:
+    def lazy_load(self) -> Iterator[Document]:
 
-        documents = []
-        prs = Presentation(str(self.file_path))
+        presentation = Presentation(str(self.file_path))
 
-        for page, slide in enumerate(prs.slides):
+        for page, slide in enumerate(presentation.slides):
             shapes = unwrap_group(slide)
             content = [shape_text(shape) for shape in shapes]
             title = [", ".join(t.split("\n")) for t, s in zip(content, shapes) if "title" in s.name.lower()]
@@ -110,9 +110,4 @@ class PyPPTXLoader:
             if len(content) < 50:
                 continue
 
-            documents.append(Document(page_content=content, metadata={"page": page, "title": title}))
-
-        return documents
-
-    def load_and_split(self, text_splitter: TextSplitter) -> list[Document]:
-        return text_splitter.split_documents(self.load())
+            yield Document(page_content=content, metadata={"page": page, "title": title})

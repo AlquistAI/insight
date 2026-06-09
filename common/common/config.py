@@ -188,6 +188,12 @@ class Config(BaseSettings):
     # Flag for saving logs from all backend services to ElasticSearch
     ES_LOGGING_ENABLED: bool = True
 
+    ###########
+    ## OTHER ##
+    ###########
+
+    MIGRATION_INDEX_NAME_DONE: bool = False
+
     model_config = SettingsConfigDict(
         case_sensitive=True,
         env_file=(

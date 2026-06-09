@@ -4,7 +4,7 @@
   "dialogue_author": "ella.brichova@cvut.cz",
   "dialogue_description": "Dialogue designed for the MF (Ministry of Finance) project.",
   "language": "cs-CZ",
-  "editor_active": true,
+  "editor_active": false,
   "editor_initial_file": "<ul><li>Nejste aktuálně připojeni k žádnému konkrétnímu systému.</li><li>Nemám přímý přístup k internetu nebo vnějším databázím.</li><li>Mám přístup pouze k poskytnutému kontextu a k obecným informacím do října 2023.</li><li>Nemohu tedy zpracovávat informace mimo ty v poskytnutém kontextu nebo znalosti po říjnu 2023.</li></ul>",
   "commands": [
     {
@@ -34,7 +34,7 @@
       "state_id": 2,
       "command": {
         "type": "display_text",
-        "text": "## Vítá vás Adam!\n- Po otevření aplikace klikněte na 'hamburger menu' vlevo nahoře a vyberte programy nebo soubory, ve kterých se bude vyhledávat.\n- Vyhledávání probíhá pouze ve zvolené dokumentaci, například ŘO, PO, AO, CHJ.\n- Používejte oficiální termíny uvedené v dokumentech, nikoliv neformální nebo zažité výrazy.\n- Adam pro vás vygeneruje odpověď, přičemž v pravé části obrazovky se současně zobrazí stránka PDF souboru, ze které čerpal.\n- Pod odpovědí naleznete tlačítka odkazující na související stránky dokumentů, ze kterých chatbot vycházel.\n- V zobrazeném dokumentu můžete ověřit správnost odpovědi nebo pomocí lupy dohledat další informace.\n- Pro hodnocení odpovědi klikněte na ikonu palce nahoru nebo dolů.",
+        "text": "## Vítá vás ADAM!\n- Po otevření aplikace klikněte na ikonku 'ZDROJE' vpravo nahoře a vyberte programy nebo soubory, ve kterých se bude vyhledávat.\n- Vyhledávání probíhá pouze ve zvolené dokumentaci, například AO, CHJ, OP JAK.\n- Používejte oficiální termíny uvedené v dokumentech, nikoliv neformální nebo zažité výrazy.\n- ADAM pro vás vygeneruje odpověď, přičemž v pravé části obrazovky se současně zobrazí zdrojové dokumenty, ze kterých čerpal.\n- Pod odpovědí naleznete tlačítka odkazující na související stránky/úseky dokumentů, ze kterých chatbot vycházel.\n- V zobrazeném dokumentu můžete ověřit správnost odpovědi nebo pomocí lupy dohledat další informace. **DÚLEŽITÉ - Chatbot se může mýlit, vždy si ověřte správnost odpovědi ve zdrojových dokumentech!**\n- Pro hodnocení odpovědi klikněte na ikonu palce nahoru nebo dolů.",
         "next_state": 3
       }
     },

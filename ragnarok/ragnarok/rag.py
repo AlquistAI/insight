@@ -9,13 +9,16 @@
 from collections import defaultdict
 from typing import Any, Generator
 
+import numpy as np
+
 from common.config import DF
 from common.models import elastic as me
 from common.models.api_ragnarok import ConversationTurn
-from common.models.project import AISettings
+from common.models.project import AISettings, EmbeddingModelSettings
 from common.utils.prompts import build_messages, build_prompt_general
 from ragnarok.generation import LLMFactory
 from ragnarok.rerank import RerankFactory
+from ragnarok.utils import lc
 from ragnarok.utils.query_rewrite import process_context, rewrite_query
 from ragnarok.vector_db import VectorStore
 
@@ -49,6 +52,7 @@ def rag(
     """
 
     settings = settings or AISettings()
+    return_vectors = settings.generation.enabled
 
     # query rewrite
     history_messages = process_context(context or [])
@@ -66,6 +70,7 @@ def rag(
         kb_ids=kb_ids,
         settings=settings.retrieval,
         ftr_custom=ftr_custom,
+        return_vectors=return_vectors,
     )
 
     # BM25
@@ -75,6 +80,7 @@ def rag(
         kb_ids=kb_ids,
         settings=settings.retrieval,
         ftr_custom=ftr_custom,
+        return_vectors=return_vectors,
     )
 
     hits = reciprocal_rank_fusion(hits_cosine, hits_bm25)
@@ -100,6 +106,35 @@ def rag(
         gen_res = None
 
     return hits, gen_res
+
+
+def rerank_by_answer(
+        matched_chunks: list[me.KBEntry],
+        answer: str | None,
+        emb_settings: EmbeddingModelSettings | None = None,
+) -> list[me.KBEntry]:
+    """
+    Rerank the matched chunks based on the cosine similarity to the answer.
+
+    :param matched_chunks: matched chunks
+    :param answer: full answer (reranking not performed if None/empty)
+    :param emb_settings: embedding model settings
+    :return: chunks in reranked order with updated scores
+    """
+
+    if not answer:
+        return matched_chunks
+
+    emb_settings = emb_settings or EmbeddingModelSettings()
+    model, _ = lc.get_embeddings(settings=emb_settings)
+    emb_chunks = np.asarray([chunk.source.vector for chunk in matched_chunks])
+    emb_answer = np.asarray(model.embed_query(answer))
+    sim = np.dot(emb_chunks, emb_answer).tolist()
+
+    for chunk, score in zip(matched_chunks, sim):
+        chunk.score = score
+
+    return sorted(matched_chunks, key=lambda x: x.score, reverse=True)
 
 
 def reciprocal_rank_fusion(

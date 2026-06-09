@@ -77,11 +77,5 @@ class RAGPayload(mar.RAGPayload):
     settings: AISettings | None = None
 
 
-class RAGTopMatch(mar.RAGTopMatch):
-    name: str = ""
-    description: str = ""
-
-
 class RAGResponse(mar.RAGResponse):
     matched_chunks: list[KBEntry] | None = None
-    top_match: RAGTopMatch

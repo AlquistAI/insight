@@ -62,8 +62,7 @@ DEFAULT_INDEX_SETTINGS = {
                     "title": {"type": "text", "analyzer": "standard_lowercase"},
 
                     "chunk_idx": {"type": "integer"},
-                    "chunk_size": {"type": "integer", "index": False},
-                    "chunk_overlap": {"type": "integer", "index": False},
+                    "chunk_offset": {"type": "integer", "index": False},
 
                     "page": {"type": "integer"},
                     "total_pages": {"type": "integer"},
@@ -129,7 +128,7 @@ class VectorStore(metaclass=Singleton):
             hosts=str(CONFIG.ES_URL),
             basic_auth=(CONFIG.ES_USER, CONFIG.ES_PASSWORD.get_secret_value()),
             ca_certs=PATH_ES_CERT if PATH_ES_CERT.exists() else ESDefaultType.value,
-            timeout=30,
+            request_timeout=30,
         )
 
     @lru_cache(maxsize=64)
@@ -145,7 +144,7 @@ class VectorStore(metaclass=Singleton):
         """Normalize model name to be used as an index name."""
 
         # FixMe: Hack to handle indices with old model names -> rename indices and remove this.
-        if model_name == "text-embedding-3-large":
+        if not CONFIG.MIGRATION_INDEX_NAME_DONE and model_name == "text-embedding-3-large":
             return "openai-3-large"
 
         return model_name.translate(ES_INDEX_TRANSLATOR).lower()
@@ -447,6 +446,7 @@ class VectorStore(metaclass=Singleton):
             kb_ids: list[str] | None = None,
             settings: RetrievalSettings | None = None,
             ftr_custom: list[dict[str, Any]] | None = None,
+            return_vectors: bool = False,
     ) -> list[me.KBEntry]:
         """
         Perform a KNN vector search for a given query.
@@ -456,6 +456,7 @@ class VectorStore(metaclass=Singleton):
         :param kb_ids: knowledge base IDs to include (None for all project documents)
         :param settings: retrieval settings
         :param ftr_custom: custom filters added to the default ones
+        :param return_vectors: return embedding vectors in the response
         :return: search operation result
         """
 
@@ -481,7 +482,7 @@ class VectorStore(metaclass=Singleton):
                 "filter": ftr,
             },
             size=settings.k_emb,
-            source_excludes="vector",
+            source_excludes=None if return_vectors else "vector",
         )
 
         if res["hits"]["total"]["value"] == 0:
@@ -496,6 +497,7 @@ class VectorStore(metaclass=Singleton):
             kb_ids: list[str] | None = None,
             settings: RetrievalSettings | None = None,
             ftr_custom: list[dict[str, Any]] | None = None,
+            return_vectors: bool = False,
     ):
         """
         Perform a text search (BM25) for a given query.
@@ -505,6 +507,7 @@ class VectorStore(metaclass=Singleton):
         :param kb_ids: knowledge base IDs to include (None for all project documents)
         :param settings: retrieval settings
         :param ftr_custom: custom filters added to the default ones
+        :param return_vectors: return embedding vectors in the response
         :return: search operation result
         """
 
@@ -528,7 +531,7 @@ class VectorStore(metaclass=Singleton):
                 },
             },
             size=settings.k_bm25,
-            source_excludes="vector",
+            source_excludes=None if return_vectors else "vector",
         )
 
         return [me.KBEntry.model_validate(x) for x in res["hits"]["hits"]]

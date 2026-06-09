@@ -20,9 +20,8 @@ VER_TURNS: int = get_args(_T_VER_TURNS)[0]
 
 class Turn(CustomBaseModel):
     id: MongoID = Field(alias="_id", default_factory=object_id_str)
-    session_id: str
-
     project_id: str | None = None
+    session_id: str
     user_id: str | None = None
 
     user_query: str = ""

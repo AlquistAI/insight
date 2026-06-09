@@ -6,10 +6,14 @@
     Operations required to run before server start (e.g. migrations).
 """
 
-import copy
+from datetime import datetime
+from time import sleep
 from typing import Any
 
 import pymongo
+from dateutil import tz
+from pymongo import ReplaceOne, UpdateOne
+from pymongo.errors import DuplicateKeyError
 
 from common.core import get_component_logger
 from common.models.enums import Coll
@@ -21,6 +25,9 @@ from kronos.services.db.mongo.connection import get_db
 
 logger = get_component_logger()
 db = get_db()
+
+LOCKS = db[Coll.LOCKS]
+LOCK_NAME = "db_migration"
 
 INDEXES = {
     Coll.KB: [
@@ -46,11 +53,30 @@ MODEL_VERSIONS = {
 }
 
 
+def get_lock() -> bool:
+    """Get migration lock."""
+
+    logger.info("Getting migration lock...")
+    has_lock = False
+
+    while not has_lock:
+        try:
+            LOCKS.insert_one({"_id": LOCK_NAME, "created_at": datetime.now(tz=tz.UTC)})
+            logger.info("Migration lock acquired")
+            has_lock = True
+        except DuplicateKeyError:
+            logger.info("Waiting for migration lock...")
+            sleep(5)
+
+    return has_lock
+
+
 def prepare_db():
     """Prepare collections and indexes."""
 
-    logger.info("Preparing the MongoDB collections...")
+    logger.info("Initializing the MongoDB collections...")
     coll_names = db.list_collection_names()
+    updated = False
 
     for coll_name, indexes in INDEXES.items():
         coll = db[coll_name]
@@ -64,12 +90,17 @@ def prepare_db():
             if index[0] not in index_names:
                 logger.info("Creating index %s for coll %s", index, coll_name.value)
                 coll.create_index([index], **kwargs)
+                updated = True
+
+    if not updated:
+        logger.info("Collections already initialized --> skipping")
 
 
 def migrate_mongo_data():
     """Migrate MongoDB data to the current version."""
 
     logger.info("Migrating data to the current version...")
+    updated = False
 
     for c_name, ver in MODEL_VERSIONS.items():
         if c_name == Coll.KB:
@@ -88,9 +119,6 @@ def migrate_mongo_data():
         new = []
 
         for d in old:
-            # preserve the original copy in case rollback is needed
-            d = copy.deepcopy(d)
-
             try:
                 new.append(func(d))
             except Exception as e:
@@ -98,23 +126,23 @@ def migrate_mongo_data():
 
         if new:
             logger.info("Migrating %d document(s) in coll %s", len(new), c_name.value)
-            ids = [x.id for x in new]
-            new = [x.model_dump() for x in new]
+            operations = [ReplaceOne({"_id": d.id}, d.model_dump()) for d in new]
+            updated = True
 
             try:
-                # ToDo: Do bulk update instead of deleting and re-inserting the documents.
-                coll.delete_many({"_id": {"$in": ids}})
-                coll.insert_many(new, ordered=False)
+                coll.bulk_write(operations, ordered=False)
             except Exception as e:
-                logger.error("Failed to insert migrated documents: %s", e)
-                coll.insert_many(old, ordered=False)
+                logger.error("Failed to replace migrated documents: %s", e)
+
+    if not updated:
+        logger.info("No migration needed --> skipping")
 
 
 def _migrate_kb(old: dict[str, Any]) -> KnowledgeBase:
     """Migrate knowledge base data to the current version."""
 
     if old["model_version"] < 2:
-        # normalize language
+        # Normalize language
         old["language"] = "cs-CZ" if old["language"] == "cs" else "en-US"
 
     old["model_version"] = VER_KB
@@ -125,7 +153,7 @@ def _migrate_project(old: dict[str, Any]) -> Project:
     """Migrate project data to the current version."""
 
     if old["model_version"] < 4:
-        # set modified_at field to created_at
+        # Set modified_at field to created_at
         old["modified_at"] = old["created_at"]
 
     old["model_version"] = VER_PROJECTS
@@ -146,6 +174,61 @@ def _migrate_turn(old: dict[str, Any]) -> Turn:
     return Turn.model_validate(old)
 
 
+def migrate_first_user_query():
+    """Migrate old sessions to include first user query."""
+
+    logger.info("Migrating first user query...")
+    coll_sessions = db[Coll.SESSIONS]
+    coll_turns = db[Coll.TURNS]
+
+    sessions = coll_sessions.find(
+        {
+            "model_version": {"$lt": 3},
+            "$or": [
+                {"first_user_query": {"$exists": False}},
+                {"first_user_query": ""},
+            ],
+        },
+        {"_id": 1},
+    )
+
+    if not (session_ids := [x["_id"] for x in sessions]):
+        logger.info("No sessions to migrate --> skipping")
+        return
+
+    turns = coll_turns.find(
+        {"session_id": {"$in": session_ids}},
+        {"session_id": 1, "user_query": 1, "created_at": 1},
+    )
+
+    first_turns = {}
+    for turn in turns:
+        sid = turn["session_id"]
+        if sid not in first_turns or turn["created_at"] < first_turns[sid]["created_at"]:
+            first_turns[sid] = turn
+
+    operations = [
+        UpdateOne({"_id": sid}, {"$set": {"first_user_query": query}})
+        for sid, turn in first_turns.items() if (query := turn.get("user_query"))
+    ]
+
+    if not operations:
+        logger.info("Remaining sessions have no turns --> skipping")
+        return
+
+    logger.info("Adding first user query to %d session(s)", len(operations))
+
+    try:
+        coll_sessions.bulk_write(operations, ordered=False)
+    except Exception as e:
+        logger.error("Failed to update sessions: %s", e)
+
+
 if __name__ == "__main__":
-    prepare_db()
-    migrate_mongo_data()
+    if get_lock():
+        try:
+            prepare_db()
+            migrate_first_user_query()
+            migrate_mongo_data()
+        finally:
+            LOCKS.delete_one({"_id": LOCK_NAME})

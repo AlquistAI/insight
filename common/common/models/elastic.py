@@ -23,8 +23,7 @@ class DocumentLoaderMetadata(CustomBaseModel):
     title: str = ""
 
     chunk_idx: int = 0
-    chunk_size: int | None = None
-    chunk_overlap: int | None = None
+    chunk_offset: int | None = None
 
     page: int = 1
     total_pages: int = 1

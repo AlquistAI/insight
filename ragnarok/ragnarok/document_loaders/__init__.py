@@ -16,6 +16,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from common.models.enums import SourceType
 from common.utils import exceptions as exc
 from ragnarok.document_loaders.docx import PyDOCXLoader
+from ragnarok.document_loaders.marker import MarkerMDLoader
 from ragnarok.document_loaders.pptx import PyPPTXLoader
 from ragnarok.document_loaders.xlsx import OpenPyXLLoader
 
@@ -37,6 +38,8 @@ def parse_file(content: bytes, source_type: SourceType) -> list[Document]:
         func = parse_docx
     elif source_type == SourceType.HTML:
         func = parse_html
+    elif source_type == SourceType.MD:
+        func = parse_md
     elif source_type == SourceType.PDF:
         func = parse_pdf
     elif source_type == SourceType.PPTX:
@@ -55,7 +58,6 @@ def parse_file(content: bytes, source_type: SourceType) -> list[Document]:
         raise exc.DocumentParsingError("Document loader did not return any documents")
 
     # Normalize page numbers and fill chunk indices
-    # ToDo: Per-page chunk indices in case the pages are also split into multiple chunks.
     for idx, document in enumerate(documents):
         document.metadata["chunk_idx"] = idx
         document.metadata["page"] = document.metadata.get("page", 0) + 1
@@ -68,12 +70,18 @@ def parse_file(content: bytes, source_type: SourceType) -> list[Document]:
     return documents
 
 
-def parse_docx(path: str, chunk_size: int = 2500, chunk_overlap: int = 200) -> list[Document]:
+def parse_docx(path: str, chunk_size: int = 2000, chunk_overlap: int = 200) -> list[Document]:
     return _load_and_split(loader=PyDOCXLoader(path), chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
 
-def parse_html(path: str, chunk_size: int = 2500, chunk_overlap: int = 200) -> list[Document]:
+def parse_html(path: str, chunk_size: int = 2000, chunk_overlap: int = 200) -> list[Document]:
     return _load_and_split(loader=BSHTMLLoader(path), chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+
+
+def parse_md(path: str, chunk_size: int = 2000, chunk_overlap: int = 200) -> list[Document]:
+    if documents := MarkerMDLoader(path).load():
+        return documents
+    return parse_txt(path=path, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
 
 def parse_pdf(path: str) -> list[Document]:
@@ -84,7 +92,7 @@ def parse_pptx(path: str) -> list[Document]:
     return PyPPTXLoader(path).load()
 
 
-def parse_txt(path: str, chunk_size: int = 2500, chunk_overlap: int = 200) -> list[Document]:
+def parse_txt(path: str, chunk_size: int = 2000, chunk_overlap: int = 200) -> list[Document]:
     return _load_and_split(loader=TextLoader(path), chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
 
@@ -93,10 +101,14 @@ def parse_xlsx(path: str) -> list[Document]:
 
 
 def _load_and_split(loader, chunk_size: int, chunk_overlap: int) -> list[Document]:
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
-    documents = loader.load_and_split(text_splitter)
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        add_start_index=True,
+    )
 
+    documents = loader.load_and_split(text_splitter)
     for document in documents:
-        document.metadata.update({"chunk_size": chunk_size, "chunk_overlap": chunk_overlap})
+        document.metadata["chunk_offset"] = document.metadata.pop("start_index", 0)
 
     return documents

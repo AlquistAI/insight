@@ -17,7 +17,7 @@ from fastapi.routing import APIRouter
 from common.core import get_component_logger
 from common.models import api_ragnarok as mar, elastic as me
 from common.utils.api import error_handler
-from ragnarok.rag import rag
+from ragnarok.rag import rag, rerank_by_answer
 from ragnarok.vector_db import VectorStore
 
 logger = get_component_logger()
@@ -55,6 +55,9 @@ def rag_pipeline(project_id: str, payload: mar.RAGPayload) -> mar.RAGResponse:
     :return: RAG response
     """
 
+    hls = None
+    text: str | None
+
     chunks, text = rag(
         project_id=project_id,
         query=payload.query,
@@ -65,26 +68,11 @@ def rag_pipeline(project_id: str, payload: mar.RAGPayload) -> mar.RAGResponse:
         ftr_custom=payload.ftr_custom,
     )
 
-    top = chunks[0]
-    top_match = mar.RAGTopMatch(
-        kb_id=top.source.metadata.kb_id,
-        language=top.source.metadata.language,
-        page=top.source.metadata.page,
-        source_file=top.source.metadata.source_file,
-        source_type=top.source.metadata.source_type,
-    )
+    chunks = _process_matched_chunks(chunks=chunks, answer=text, payload=payload)
+    if payload.return_highlights and chunks:
+        hls = [_build_highlight_group_for_hit(project_id=project_id, payload=payload, hit=hit) for hit in chunks]
 
-    highlights = [
-        _build_highlight_group_for_hit(project_id=project_id, payload=payload, hit=hit)
-        for hit in chunks
-    ] if payload.return_highlights else None
-
-    return mar.RAGResponse(
-        generated_text=text,
-        top_match=top_match,
-        highlights=highlights,
-        matched_chunks=chunks if payload.return_matched_chunks else None,
-    )
+    return mar.RAGResponse(generated_text=text, highlights=hls, matched_chunks=chunks)
 
 
 @router.post(
@@ -116,15 +104,17 @@ def rag_pipeline_stream(project_id: str, payload: mar.RAGPayload) -> StreamingRe
       - `is_last_chunk`: (bool) whether the current chunk is the last chunk
       - `text`: (str) generated text chunk or empty string
 
-    Additional response object attributes, sent as the first chunk with chunk_index -1:
-      - `matched_chunks`: (list) list of matched document chunks using cosine similarity
-      - `top_match`: (dict) data of the top matched document (see non-streamed version for details)
+    Additional response object attributes, sent as the last chunk:
+      - `highlights`: (list) data used for source snippet highlighting
+      - `matched_chunks`: (list) matched document chunks
+      - `text_full`: (str) full version of the streamed text
 
     :param project_id: project ID
     :param payload: payload with user query and additional settings (see description)
     :return: streamed RAG response (see description)
     """
 
+    text_gen: Generator[str, None, None] | None
     chunks, text_gen = rag(
         project_id=project_id,
         query=payload.query,
@@ -136,27 +126,7 @@ def rag_pipeline_stream(project_id: str, payload: mar.RAGPayload) -> StreamingRe
         stream=True,
     )
 
-    top = chunks[0]
-    top_match = mar.RAGTopMatch(
-        kb_id=top.source.metadata.kb_id,
-        language=top.source.metadata.language,
-        page=top.source.metadata.page,
-        source_file=top.source.metadata.source_file,
-        source_type=top.source.metadata.source_type,
-    )
-
-    top_highlight = _build_highlight_group_for_hit(
-        project_id=project_id,
-        payload=payload,
-        hit=top,
-    ) if payload.return_highlights else None
-
-    response_gen = _streamed_rag_response(
-        text_gen=text_gen,
-        top_match=top_match,
-        highlights=[top_highlight] if top_highlight else [],
-        matched_chunks=chunks if payload.return_matched_chunks else None,
-    )
+    response_gen = _streamed_rag_response(project_id=project_id, payload=payload, chunks=chunks, text_gen=text_gen)
     return StreamingResponse(response_gen, media_type="application/x-ndjson")
 
 
@@ -179,28 +149,52 @@ def fetch_highlights(project_id: str, request: mar.HighlightRequest) -> mar.RAGH
     return _build_highlight_group_for_hit(project_id=project_id, payload=request.payload, hit=request.hit)
 
 
+def _process_matched_chunks(
+        chunks: list[me.KBEntry],
+        answer: str | None,
+        payload: mar.RAGPayload,
+) -> list[me.KBEntry] | None:
+    """Process matched chunks based on RAG settings."""
+
+    if not payload.return_matched_chunks:
+        return None
+
+    chunks = rerank_by_answer(matched_chunks=chunks, answer=answer, emb_settings=payload.settings.retrieval.model)
+    for chunk in chunks:
+        chunk.source.vector = None
+    return chunks
+
+
 def _streamed_rag_response(
+        project_id: str,
+        payload: mar.RAGPayload,
+        chunks: list[me.KBEntry],
         text_gen: Generator[str, None, None] | None,
-        top_match: mar.RAGTopMatch,
-        highlights: list[mar.RAGHighlightGroup] | None,
-        matched_chunks: list[me.KBEntry] | None,
 ) -> Generator[str, None, None]:
     """Generate ndjson chunks for the streamed RAG response."""
 
+    answer = ""
+    hls = None
+    idx = -1
+
+    if text_gen is not None:
+        for idx, text in enumerate(text_gen):
+            answer += (text := text or "")
+            yield json.dumps({"chunk_index": idx, "is_last_chunk": False, "text": text}) + "\n"
+
+    chunks = _process_matched_chunks(chunks=chunks, answer=answer, payload=payload)
+    if payload.return_highlights and chunks:
+        # We are automatically building highlights only for the top chunk for performance reasons
+        hls = [_build_highlight_group_for_hit(project_id=project_id, payload=payload, hit=chunks[0])]
+
     yield json.dumps({
-        "chunk_index": -1,
-        "is_last_chunk": False,
+        "chunk_index": idx + 1,
+        "is_last_chunk": True,
+        "highlights": jsonable_encoder(hls),
+        "matched_chunks": jsonable_encoder(chunks),
         "text": "",
-        "top_match": top_match.model_dump(),
-        "highlights": jsonable_encoder(highlights),
-        "matched_chunks": jsonable_encoder(matched_chunks),
+        "text_full": answer,
     }) + "\n"
-
-    if text_gen is None:
-        return
-
-    for idx, text in enumerate(text_gen):
-        yield json.dumps({"chunk_index": idx, "is_last_chunk": text is None, "text": text or ""}) + "\n"
 
 
 def _build_highlight_group_for_hit(project_id: str, payload: mar.RAGPayload, hit: me.KBEntry) -> mar.RAGHighlightGroup:

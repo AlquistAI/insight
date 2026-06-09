@@ -14,7 +14,6 @@ from pydantic import Field
 from common.config import DF
 from common.models import elastic as me
 from common.models.base import CustomBaseModel
-from common.models.enums import SourceType
 from common.models.project import AISettings
 
 
@@ -50,14 +49,6 @@ class RAGPayload(CustomBaseModel):
     return_matched_chunks: bool = True
 
 
-class RAGTopMatch(CustomBaseModel):
-    kb_id: str
-    language: str
-    page: int
-    source_file: str
-    source_type: SourceType
-
-
 class RAGHighlightSpan(CustomBaseModel):
     kb_id: str
     source_file: str
@@ -78,8 +69,6 @@ class RAGHighlightGroup(CustomBaseModel):
 
 class RAGResponse(CustomBaseModel):
     generated_text: str | None = None
-    top_match: RAGTopMatch
-
     highlights: list[RAGHighlightGroup] | None = None
     matched_chunks: list[me.KBEntry] | None = None
 
