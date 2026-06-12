@@ -302,7 +302,7 @@ def upload_marker_kb(
     :param files: MD and PDF files (see description for details)
     :param project_id: project ID
     :param kb_id: knowledge base ID (random generated if empty)
-    :param source_file: source file name (path)
+    :param source_file: source file name (path) of the original PDF file
     :param name: knowledge base name
     :param description: knowledge base description
     :param language: text language (project language used if not provided)
@@ -321,6 +321,9 @@ def upload_marker_kb(
 
     if not files.get("md") or not files.get("pdf"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "You must provide files with .md and .pdf extensions")
+
+    if not source_file:
+        source_file = files["pdf"].filename or ""
 
     data = upload_file_kb(
         file=files["md"],
@@ -343,9 +346,8 @@ def upload_marker_kb(
     )[0]
     storage.post_file(file_path=file_path, content=files["pdf"].file.read())
 
-    data.source_type = SourceType.PDF
     db_kb.COLL_KB.update_one({"_id": data.id}, {"$set": {"source_type": SourceType.PDF.value}})
-    return data
+    return db_kb.get_kb(kb_id=data.id)
 
 
 @router.post(

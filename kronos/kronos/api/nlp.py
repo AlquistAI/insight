@@ -158,11 +158,13 @@ def _update_matched_chunks(
     matched_chunks = [mak.KBEntry.model_validate(x) for x in matched_chunks]
 
     ids = [x.source.metadata.kb_id for x in matched_chunks]
-    data = get_kb_bulk(kb_ids=ids, fields={"name", "description"})
+    data = get_kb_bulk(kb_ids=ids, fields={"name", "description", "source_file", "source_type"})
 
     for chunk, d in zip(matched_chunks, data):
         chunk.source.metadata.name = d["name"]
         chunk.source.metadata.description = d["description"]
+        chunk.source.metadata.source_file = d["source_file"]
+        chunk.source.metadata.source_type = d["source_type"]
 
     return [x.model_dump(mode="json") for x in matched_chunks] if dict_input else matched_chunks
 

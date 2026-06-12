@@ -46,5 +46,11 @@ venv.bak/
 /maestro/frontend/
 .DS_Store
 
+# Marker-PDF folder
+/scripts/marker_pdf/*.json*
+/scripts/marker_pdf/*.md
+/scripts/marker_pdf/*.pdf
+!/scripts/marker_pdf/README.md
+
 # Exceptions
 !/config.env

@@ -32,3 +32,12 @@ class MarkerMDLoader(BaseLoader):
             page_end = (matches[i + 1].start() if i + 1 < len(matches) else len(content))
             page_content = content[page_start:page_end].strip()
             yield Document(page_content=page_content, metadata={"page": page_id})
+
+    def load(self) -> list[Document]:
+        documents = super().load()
+        total_pages = len(documents)
+
+        for document in documents:
+            document.metadata["total_pages"] = total_pages
+
+        return documents

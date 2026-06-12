@@ -96,7 +96,6 @@ class PyPPTXLoader(BaseLoader):
         self.file_path = file_path
 
     def lazy_load(self) -> Iterator[Document]:
-
         presentation = Presentation(str(self.file_path))
 
         for page, slide in enumerate(presentation.slides):
@@ -111,3 +110,12 @@ class PyPPTXLoader(BaseLoader):
                 continue
 
             yield Document(page_content=content, metadata={"page": page, "title": title})
+
+    def load(self) -> list[Document]:
+        documents = super().load()
+        total_pages = len(documents)
+
+        for document in documents:
+            document.metadata["total_pages"] = total_pages
+
+        return documents

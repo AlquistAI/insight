@@ -71,30 +71,29 @@ def create_client_config(client_name: ClientName):
     """Create a config file for a given client."""
 
     logger.info("Creating config for client %s", client_name.value)
+    client_type = "ADMIN" if client_name.name.startswith("ADMIN") else "INTERACTOR"
 
     config = {
         "DEPLOYMENT": CONFIG.DEPLOYMENT,
         "ENVIRONMENT": "PRODUCTION" if CONFIG.DEPLOYMENT.startswith("production") else "DEVELOPMENT",
+        "KEYCLOAK_CLIENT_ID": CONFIG.KEYCLOAK_CLIENT_ID,
+        "KEYCLOAK_REALM": CONFIG.KEYCLOAK_REALM,
+        "KEYCLOAK_URL": str(CONFIG.KEYCLOAK_URL_EXTERNAL).rstrip("/"),
         "KRONOS_URL": str(CONFIG.KRONOS_URL_EXTERNAL).rstrip("/"),
         "MAESTRO_URL": str(CONFIG.MAESTRO_URL_EXTERNAL).rstrip("/"),
-        "KEYCLOAK_URL": str(CONFIG.KEYCLOAK_URL_EXTERNAL).rstrip("/"),
-        "KEYCLOAK_REALM": CONFIG.KEYCLOAK_REALM,
-        "KEYCLOAK_CLIENT_ID": CONFIG.KEYCLOAK_CLIENT_ID,
         "PROJECT_ID": CONFIG.PROJECT_ID,
         "PROJECT_TITLE": CONFIG.PROJECT_TITLE,
+        "VERSION": CONFIG.ADMIN_CONSOLE_VERSION if client_type == "ADMIN" else CONFIG.INTERACTOR_VERSION,
     }
 
-    # Handle different names for same things in different clients.
+    # Handle different names for same things in different clients
     # ToDo: Unify the names in clients and get rid of this.
     config["KEYCLOAK_CLIENT_ID_LOCAL"] = config["KEYCLOAK_CLIENT_ID"]
     config["MAESTRO_API_URL"] = config["MAESTRO_URL"]
 
-    if client_name in (ClientName.ADMIN, ClientName.ADMIN_SIMPLE):
-        # FixMe: Get rid of the API key from client apps!
+    if client_name == ClientName.ADMIN_SIMPLE:
+        # FixMe: Get rid of the API key from the simplified Admin client!
         config["KRONOS_API_KEY"] = CONFIG.KRONOS_API_KEY.get_secret_value()
-        config["VERSION"] = CONFIG.ADMIN_CONSOLE_VERSION
-    elif client_name in (ClientName.INTERACTOR, ClientName.INTERACTOR_UPV):
-        config["VERSION"] = CONFIG.INTERACTOR_VERSION
 
     config_path = CLIENT_NAME_TO_DIR[client_name] / "dist" / "config.json"
     with open(config_path, "w") as f:
