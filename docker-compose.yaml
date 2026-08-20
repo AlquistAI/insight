@@ -176,7 +176,7 @@ x-services:
               count: all
               capabilities: [ gpu ]
 
-    command: [ "sh", "-c", "sleep 10 && exec vllm serve \"$0\" --gpu-memory-utilization=0.1 --max-num-seqs=1", *vllm-embedding-model ]
+    command: [ "sh", "-c", "sleep 10 && exec vllm serve \"$0\" --gpu-memory-utilization=0.05 --max-num-seqs=1", *vllm-embedding-model ]
     environment:
       NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
       NVIDIA_VISIBLE_DEVICES: "all"
