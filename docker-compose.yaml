@@ -1,9 +1,9 @@
 ### FIRST RUN INSTRUCTIONS ###
 #
 # 1. Set required volume mount permissions:
-#   >>> mkdir -p data/{elasticsearch,keycloak,maestro/frontend,ragnarok/models}
+#   >>> mkdir -p data/{alchemist/{docling,huggingface},elasticsearch,keycloak,maestro/frontend,ragnarok/models}
 #   >>> sudo chown -R 1000:1000 data/{elasticsearch,keycloak}
-#   >>> sudo chown -R 999:999 data/{maestro,ragnarok}
+#   >>> sudo chown -R 999:999 data/{alchemist,maestro,ragnarok}
 #
 # 2. Log in to the GitLab container registry (or use locally built internal images):
 #   >>> docker login registry.gitlab.com -u {GITLAB_USER} -p {GITLAB_PASSWORD}
@@ -17,13 +17,15 @@ x-variables:
   triton: &triton-image               nvcr.io/nvidia/tritonserver:24.07-py3
   vllm: &vllm-image                   nvcr.io/nvidia/vllm:25.09-py3
 
-  kronos: &kronos-image     kronos:latest
-  maestro: &maestro-image   maestro:latest
-  ragnarok: &ragnarok-image ragnarok:latest
+  alchemist: &alchemist-image alchemist:latest
+  kronos: &kronos-image       kronos:latest
+  maestro: &maestro-image     maestro:latest
+  ragnarok: &ragnarok-image   ragnarok:latest
 
-  # kronos: &kronos-image     registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/kronos:latest
-  # maestro: &maestro-image   registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/maestro:latest
-  # ragnarok: &ragnarok-image registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/ragnarok:latest
+  # alchemist: &alchemist-image registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/alchemist:latest
+  # kronos: &kronos-image       registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/kronos:latest
+  # maestro: &maestro-image     registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/maestro:latest
+  # ragnarok: &ragnarok-image   registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/ragnarok:latest
 
   vllm_embedding_model: &vllm-embedding-model   Qwen/Qwen3-Embedding-0.6B
   vllm_generation_model: &vllm-generation-model Qwen/Qwen3-30B-A3B
@@ -35,7 +37,7 @@ x-services:
     restart: unless-stopped
 
     environment:
-      ES_JAVA_OPTS: "-Xms1g -Xmx1g"
+      ES_JAVA_OPTS: "-Xms2g -Xmx2g"
       discovery.type: "single-node"
       xpack.security.enabled: "false"
       xpack.security.enrollment.enabled: "false"
@@ -45,14 +47,13 @@ x-services:
       retries: 2
       start_period: 30s
       timeout: 5s
-    ports:
-      - "9200:9200"
-      - "9300:9300"
+    # ports:
+    #   - "127.0.0.1:9200:9200"
+    #   - "127.0.0.1:9300:9300"
     volumes:
       - ./data/elasticsearch:/usr/share/elasticsearch/data
 
   keycloak: &keycloak-service
-    # ToDo: This image does not include any networking tools. Create a healthcheck that does not need them.
     image: *keycloak-image
     container_name: keycloak
     restart: unless-stopped
@@ -71,7 +72,7 @@ x-services:
       KC_DB_USERNAME: ${KEYCLOAK_DB_USER:-keycloak}
       KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./data/keycloak:/opt/keycloak/data
 
@@ -90,9 +91,9 @@ x-services:
       retries: 2
       start_period: 10s
       timeout: 5s
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    # ports:
+    #   - "127.0.0.1:9000:9000"
+    #   - "127.0.0.1:9001:9001"
     volumes:
       - ./data/minio:/data
 
@@ -107,8 +108,8 @@ x-services:
       retries: 2
       start_period: 10s
       timeout: 5s
-    ports:
-      - "27017:27017"
+    # ports:
+    #   - "127.0.0.1:27017:27017"
     volumes:
       - ./data/mongo:/data/db
 
@@ -127,8 +128,8 @@ x-services:
       retries: 2
       start_period: 10s
       timeout: 5s
-    ports:
-      - "5432:5432"
+    # ports:
+    #   - "127.0.0.1:5432:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
 
@@ -146,10 +147,10 @@ x-services:
       retries: 2
       start_period: 1m
       timeout: 5s
-    ports:
-      - "8000:8000" # HTTP
-      - "8001:8001" # gRPC
-      - "8002:8002" # metrics
+    # ports:
+    #   - "127.0.0.1:8000:8000" # HTTP
+    #   - "127.0.0.1:8001:8001" # gRPC
+    #   - "127.0.0.1:8002:8002" # metrics
     volumes:
       - ./data/triton/models:/models
 
@@ -159,7 +160,7 @@ x-services:
     restart: unless-stopped
 
     gpus: all
-    mem_limit: 20g
+    mem_limit: 10g
     shm_size: 8g
     ulimits:
       memlock: -1
@@ -169,7 +170,7 @@ x-services:
     deploy:
       resources:
         limits:
-          memory: 20g
+          memory: 10g
         reservations:
           devices:
             - driver: nvidia
@@ -186,8 +187,8 @@ x-services:
       retries: 2
       start_period: 10m
       timeout: 5s
-    ports:
-      - "8123:8000"
+    # ports:
+    #   - "127.0.0.1:8123:8000"
     volumes:
       - ./data/vllm-embedding/models:/root/.cache/huggingface
 
@@ -227,10 +228,41 @@ x-services:
       retries: 2
       start_period: 10m
       timeout: 5s
-    ports:
-      - "8100:8000"
+    # ports:
+    #   - "127.0.0.1:8100:8000"
     volumes:
       - ./data/vllm-generation/models:/root/.cache/huggingface
+
+  alchemist: &alchemist-service
+    image: *alchemist-image
+    container_name: alchemist
+    restart: unless-stopped
+
+    gpus: all
+
+    # GPU access (requires NVIDIA Container Toolkit)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+
+    env_file:
+      - ./config.env
+      - ./config.local.env
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:9642/health || exit 1" ]
+      interval: 1m
+      retries: 2
+      start_period: 10s
+      timeout: 5s
+    ports:
+      - "127.0.0.1:9642:9642"
+    volumes:
+      - ./data/alchemist/docling:/home/app/.cache/docling
+      - ./data/alchemist/huggingface:/home/app/.cache/huggingface
 
   kronos: &kronos-service
     image: *kronos-image
@@ -252,7 +284,7 @@ x-services:
       start_period: 10s
       timeout: 5s
     ports:
-      - "9625:9625"
+      - "127.0.0.1:9625:9625"
 
   maestro: &maestro-service
     image: *maestro-image
@@ -272,7 +304,7 @@ x-services:
       start_period: 10s
       timeout: 5s
     ports:
-      - "8020:8020"
+      - "127.0.0.1:8020:8020"
     volumes:
       - ./data/maestro/frontend:/home/app/frontend
 
@@ -294,7 +326,7 @@ x-services:
       start_period: 10s
       timeout: 5s
     ports:
-      - "9696:9696"
+      - "127.0.0.1:9696:9696"
     volumes:
       - ./data/ragnarok/models:/home/app/.cache/huggingface
 
@@ -308,6 +340,7 @@ services:
   vllm-embedding: *vllm-embedding-service
   vllm-generation: *vllm-generation-service
 
+  alchemist: *alchemist-service
   kronos: *kronos-service
   maestro: *maestro-service
   ragnarok: *ragnarok-service

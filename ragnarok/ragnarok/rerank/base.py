@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 
 from common.config import DF
 from common.models.enums import ModelProvider
+from common.models.usage import ModelUsage
 from common.utils.singleton import SingletonABC
 
 
@@ -21,13 +22,18 @@ class RerankerBase(ABC, metaclass=SingletonABC):
         self.model_name = model_name
 
     @abstractmethod
-    def rerank(self, query: str, documents: list[str], k: int = DF.K_RERANK) -> list[int]:
+    def rerank(
+            self,
+            query: str,
+            documents: list[str],
+            k: int = DF.K_RERANK,
+    ) -> tuple[list[int], ModelUsage | None]:
         """
         Rerank documents.
 
         :param query: user query
         :param documents: list of documents to rerank
         :param k: top-K results to return
-        :return: doc indices in the re-ranked order
+        :return: doc indices in the re-ranked order, token usage & cost of the call (None if not reported)
         """
         raise NotImplementedError

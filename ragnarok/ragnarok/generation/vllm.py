@@ -13,6 +13,7 @@ from openai import OpenAI
 from common.config import DF
 from common.core.logger_utils import log_elapsed_time
 from common.models.enums import ModelProvider
+from common.models.usage import ModelUsage
 from ragnarok.generation.base import LLMBase
 
 
@@ -37,21 +38,23 @@ class NvidiaVLLM(LLMBase):
             self,
             messages: list[dict[str, str]],
             temperature: float = DF.TEMPERATURE,
-    ) -> str:
+    ) -> tuple[str, ModelUsage | None]:
         # noinspection PyTypeChecker
-        return self.client.chat.completions.create(
+        completion = self.client.chat.completions.create(
             messages=messages,
             model=self.model_name,
             temperature=temperature,
             n=1,
             extra_body=self.extra_body,
-        ).choices[0].message.content
+        )
+
+        return completion.choices[0].message.content, self._build_usage(completion.usage)
 
     def chat_completion_stream(
             self,
             messages: list[dict[str, str]],
             temperature: float = DF.TEMPERATURE,
-    ) -> Generator[str, None, None]:
+    ) -> Generator[str, None, ModelUsage | None]:
         # noinspection PyTypeChecker
         completion = self.client.chat.completions.create(
             messages=messages,
@@ -60,8 +63,16 @@ class NvidiaVLLM(LLMBase):
             n=1,
             extra_body=self.extra_body,
             stream=True,
+            stream_options={"include_usage": True},
         )
 
+        usage = None
+
         for chunk in completion:
+            # Usage is reported in a separate final chunk (with an empty `choices` list).
+            if chunk.usage is not None:
+                usage = chunk.usage
             if chunk.choices:
                 yield chunk.choices[0].delta.content
+
+        return self._build_usage(usage)

@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Convert a PDF to Markdown using the marker-pdf library."""
+# -*- coding: utf-8 -*-
+"""
+    scripts.marker_pdf.pdf2md
+    ~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    Convert a PDF to Markdown using the marker-pdf library.
+"""
 
 import argparse
 import sys
@@ -27,8 +33,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-p", "--paginate",
         action="store_true",
-        help="Insert page markers in the Markdown output "
-             "(\"{page_id}\" followed by a horizontal rule between pages).",
+        help="Insert page markers in the Markdown output (\"{page_id}\" followed by a horizontal rule between pages).",
     )
     return parser.parse_args()
 
@@ -56,10 +61,7 @@ def main() -> int:
         from marker.models import create_model_dict
         from marker.output import text_from_rendered
     except ImportError:
-        print(
-            "error: marker-pdf is not installed. Install it with: pip install marker-pdf",
-            file=sys.stderr,
-        )
+        print("error: marker-pdf is not installed. Install it with: pip install marker-pdf", file=sys.stderr)
         return 1
 
     config = {"paginate_output": True} if args.paginate else None

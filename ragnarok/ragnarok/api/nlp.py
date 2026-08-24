@@ -16,7 +16,10 @@ from fastapi.routing import APIRouter
 
 from common.core import get_component_logger
 from common.models import api_ragnarok as mar, elastic as me
+from common.models.enums import RAGStep
+from common.models.usage import ModelUsage
 from common.utils.api import error_handler
+from common.utils.usage import UsageTracker
 from ragnarok.rag import rag, rerank_by_answer
 from ragnarok.vector_db import VectorStore
 
@@ -50,13 +53,18 @@ def rag_pipeline(project_id: str, payload: mar.RAGPayload) -> mar.RAGResponse:
     Example of `ftr_custom`:
       [{"term": {"metadata.custom.page_title.keyword": "Awesome Title"}}]
 
+    The `usage` attribute of the response contains the aggregated token usage and costs (in USD) of
+    all the model calls performed during the pipeline run, together with the individual calls. Usage
+    values not reported by the model APIs are counted as zero and the `cost_complete` flag is set to
+    false if the cost of any call could not be determined.
+
     :param project_id: project ID
     :param payload: payload with user query and additional settings (see description)
     :return: RAG response
     """
 
     hls = None
-    text: str | None
+    usage = UsageTracker()
 
     chunks, text = rag(
         project_id=project_id,
@@ -66,13 +74,22 @@ def rag_pipeline(project_id: str, payload: mar.RAGPayload) -> mar.RAGResponse:
         lang=payload.lang,
         settings=payload.settings,
         ftr_custom=payload.ftr_custom,
+        usage=usage,
     )
 
-    chunks = _process_matched_chunks(chunks=chunks, answer=text, payload=payload)
+    chunks = _process_matched_chunks(chunks=chunks, answer=text, payload=payload, usage=usage)
     if payload.return_highlights and chunks:
-        hls = [_build_highlight_group_for_hit(project_id=project_id, payload=payload, hit=hit) for hit in chunks]
+        hls = [
+            _build_highlight_group_for_hit(project_id=project_id, payload=payload, hit=hit, usage=usage)
+            for hit in chunks
+        ]
 
-    return mar.RAGResponse(generated_text=text, highlights=hls, matched_chunks=chunks)
+    return mar.RAGResponse(
+        generated_text=text,
+        highlights=hls,
+        matched_chunks=chunks,
+        usage=usage.summary(),
+    )
 
 
 @router.post(
@@ -108,13 +125,15 @@ def rag_pipeline_stream(project_id: str, payload: mar.RAGPayload) -> StreamingRe
       - `highlights`: (list) data used for source snippet highlighting
       - `matched_chunks`: (list) matched document chunks
       - `text_full`: (str) full version of the streamed text
+      - `usage`: (object) token usage & costs of the performed model calls
 
     :param project_id: project ID
     :param payload: payload with user query and additional settings (see description)
     :return: streamed RAG response (see description)
     """
 
-    text_gen: Generator[str, None, None] | None
+    usage = UsageTracker()
+
     chunks, text_gen = rag(
         project_id=project_id,
         query=payload.query,
@@ -124,9 +143,17 @@ def rag_pipeline_stream(project_id: str, payload: mar.RAGPayload) -> StreamingRe
         settings=payload.settings,
         ftr_custom=payload.ftr_custom,
         stream=True,
+        usage=usage,
     )
 
-    response_gen = _streamed_rag_response(project_id=project_id, payload=payload, chunks=chunks, text_gen=text_gen)
+    response_gen = _streamed_rag_response(
+        project_id=project_id,
+        payload=payload,
+        chunks=chunks,
+        text_gen=text_gen,
+        usage=usage,
+    )
+
     return StreamingResponse(response_gen, media_type="application/x-ndjson")
 
 
@@ -153,13 +180,20 @@ def _process_matched_chunks(
         chunks: list[me.KBEntry],
         answer: str | None,
         payload: mar.RAGPayload,
+        usage: UsageTracker | None = None,
 ) -> list[me.KBEntry] | None:
     """Process matched chunks based on RAG settings."""
 
     if not payload.return_matched_chunks:
         return None
 
-    chunks = rerank_by_answer(matched_chunks=chunks, answer=answer, emb_settings=payload.settings.retrieval.model)
+    chunks = rerank_by_answer(
+        matched_chunks=chunks,
+        answer=answer,
+        emb_settings=payload.settings.retrieval.model,
+        usage=usage,
+    )
+
     for chunk in chunks:
         chunk.source.vector = None
     return chunks
@@ -169,7 +203,8 @@ def _streamed_rag_response(
         project_id: str,
         payload: mar.RAGPayload,
         chunks: list[me.KBEntry],
-        text_gen: Generator[str, None, None] | None,
+        text_gen: Generator[str, None, ModelUsage | None] | None,
+        usage: UsageTracker,
 ) -> Generator[str, None, None]:
     """Generate ndjson chunks for the streamed RAG response."""
 
@@ -177,15 +212,16 @@ def _streamed_rag_response(
     hls = None
     idx = -1
 
+    # The usage of the generation call is added to the tracker once the generator is exhausted.
     if text_gen is not None:
         for idx, text in enumerate(text_gen):
             answer += (text := text or "")
             yield json.dumps({"chunk_index": idx, "is_last_chunk": False, "text": text}) + "\n"
 
-    chunks = _process_matched_chunks(chunks=chunks, answer=answer, payload=payload)
+    chunks = _process_matched_chunks(chunks=chunks, answer=answer, payload=payload, usage=usage)
     if payload.return_highlights and chunks:
         # We are automatically building highlights only for the top chunk for performance reasons
-        hls = [_build_highlight_group_for_hit(project_id=project_id, payload=payload, hit=chunks[0])]
+        hls = [_build_highlight_group_for_hit(project_id=project_id, payload=payload, hit=chunks[0], usage=usage)]
 
     yield json.dumps({
         "chunk_index": idx + 1,
@@ -194,14 +230,20 @@ def _streamed_rag_response(
         "matched_chunks": jsonable_encoder(chunks),
         "text": "",
         "text_full": answer,
+        "usage": jsonable_encoder(usage.summary()),
     }) + "\n"
 
 
-def _build_highlight_group_for_hit(project_id: str, payload: mar.RAGPayload, hit: me.KBEntry) -> mar.RAGHighlightGroup:
+def _build_highlight_group_for_hit(
+        project_id: str,
+        payload: mar.RAGPayload,
+        hit: me.KBEntry,
+        usage: UsageTracker | None = None,
+) -> mar.RAGHighlightGroup:
     """Compute highlights for exactly one matched hit (top-1)."""
 
     try:
-        spans = VS.fetch_highlight_spans(
+        spans, usage_emb = VS.fetch_highlight_spans(
             kb_id=hit.source.metadata.kb_id,
             project_id=project_id,
             source_file=hit.source.metadata.source_file,
@@ -210,6 +252,10 @@ def _build_highlight_group_for_hit(project_id: str, payload: mar.RAGPayload, hit
             query=payload.query,
             k=10,
         )
+
+        if usage is not None:
+            usage.add(usage_emb, step=RAGStep.RETRIEVAL)
+
     except Exception as e:
         logger.error("Failed to fetch highlight spans: %s", e)
         spans = None

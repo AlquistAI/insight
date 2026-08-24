@@ -24,9 +24,15 @@ class DocumentLoaderMetadata(CustomBaseModel):
 
     chunk_idx: int = 0
     chunk_offset: int | None = None
+    line_start: int | None = None
+    line_end: int | None = None
 
     page: int = 1
+    page_label: str = ""
     total_pages: int = 1
+
+    time_anchor: str = ""
+    time_unit: str = ""
 
     creationdate: datetime | None = None
     moddate: datetime | None = None

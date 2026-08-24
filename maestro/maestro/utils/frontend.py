@@ -12,6 +12,11 @@ from io import BytesIO
 from pathlib import Path
 
 import requests
+from fastapi import status
+from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException
+from starlette.types import Scope
 
 from common.config import CONFIG
 from common.core import get_component_logger
@@ -31,6 +36,27 @@ CLIENT_NAME_TO_DIR = {
     ClientName.INTERACTOR: DIR_INTERACTOR,
     ClientName.INTERACTOR_UPV: DIR_INTERACTOR,
 }
+
+
+class SPAStaticFiles(StaticFiles):
+    """
+    Serve a single-page-app build with client-side-routing fallback.
+
+    The client apps use in-browser routing (e.g. `/admin/<project_id>`). On a full page load / refresh the browser
+    asks the server for that path directly, but no such file exists on disk. Plain `StaticFiles` would return 404.
+    Instead, we fall back to `index.html` so the SPA boots and its router renders the requested route.
+
+    Requests under `assets/` are intentionally NOT rewritten: a genuinely missing JS/CSS bundle should keep
+    returning 404 rather than be masked by an HTML response.
+    """
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        try:
+            return await super().get_response(path, scope)
+        except HTTPException as ex:
+            if ex.status_code == status.HTTP_404_NOT_FOUND and not path.startswith("assets/"):
+                return await super().get_response("index.html", scope)
+            raise
 
 
 def fetch_client(client_name: ClientName, version: str):

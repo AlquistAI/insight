@@ -17,7 +17,7 @@ from common.models.enums import SourceType
 from common.models.validation import Language, MongoID, object_id_str, utc_now
 
 _T_VER_KB = Literal[3]
-VER_KB: int = get_args(_T_VER_KB)[0]
+VER_KB = get_args(_T_VER_KB)[0]
 
 
 class KnowledgeBase(CustomBaseModel):

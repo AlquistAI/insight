@@ -1,4 +1,4 @@
-# pdf2md
+# Marker-PDF
 
 A two-step CLI that turns a PDF into RAG-ready artifacts, plus an optional uploader to Kronos.
 
@@ -90,7 +90,7 @@ labels (e.g. `i`, `A-3`, `12`) via `pypdfium2`.
 
 For an input named `paper.md` + `paper.pdf`, three files are written next to the `.md`:
 
-- `paper.pages.json` — per-page markdown with printed page labels.
+- `paper.pages.json` — per-page Markdown with printed page labels.
 - `paper.sections.json` — heading skeleton tree, document-wide time estimates.
 - `paper.chunks.jsonl` — one chunk per line, ready for embedding.
 
@@ -142,9 +142,9 @@ For an input named `paper.md` + `paper.pdf`, three files are written next to the
   "document": "paper.pdf",
   "root_id": "sec-root",
   "sections": {
-    "sec-root": {...},
-    "sec-0001": {...},
-    "sec-0002": {...}
+    "sec-root": {"...": "..."},
+    "sec-0001": {"...": "..."},
+    "sec-0002": {"...": "..."}
   },
   "time_unit": {"value": "year", "confidence": 0.88, "reason": "..."},
   "time_anchor": {"value": "2026", "confidence": 0.90, "reason": "..."}

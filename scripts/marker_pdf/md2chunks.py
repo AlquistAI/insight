@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Turn a paginated Markdown file (from pdf2md.py --paginate) plus its source
-PDF into RAG preprocessing artifacts:
+# -*- coding: utf-8 -*-
+"""
+    scripts.marker_pdf.md2chunks
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    <stem>.pages.json      per-page markdown keyed by physical page and printed label
-    <stem>.sections.json   heading skeleton tree (pointer-based context)
-    <stem>.chunks.jsonl    breadcrumb-prefixed chunks with page/line provenance
+    Turn a paginated Markdown file (from pdf2md.py --paginate) plus its source PDF into RAG preprocessing artifacts:
+      - <stem>.pages.json      per-page Markdown keyed by physical page and printed label
+      - <stem>.sections.json   heading skeleton tree (pointer-based context)
+      - <stem>.chunks.jsonl    breadcrumb-prefixed chunks with page/line provenance
 """
 
 import argparse
@@ -17,11 +20,12 @@ from typing import Iterable
 
 from time_estimation import estimate_time_anchor, estimate_time_unit
 
-PAGE_MARKER_RE = re.compile(r"^\{(\d+)\}-{10,}\s*$")
+PAGE_MARKER_RE = re.compile(r"^\{(\d+)}-{10,}\s*$")
 ATX_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
-IMAGE_ONLY_RE = re.compile(r"^\s*!\[[^\]]*\]\([^)]+\)\s*$")
+IMAGE_ONLY_RE = re.compile(r"^\s*!\[[^]]*]\([^)]+\)\s*$")
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+EMPHASIS_RE = re.compile(r"[*_`]+")
 
 DEFAULT_NOISE_PATTERNS = [
     r"^(table of contents|contents|toc)$",
@@ -34,7 +38,7 @@ DEFAULT_NOISE_PATTERNS = [
 ]
 
 
-# ---------- CLI ----------------------------------------------------------------
+# ---------- CLI ---------------------------------------------------------------
 
 
 def parse_args() -> argparse.Namespace:
@@ -57,8 +61,7 @@ def parse_args() -> argparse.Namespace:
                         help="Drop sections whose heading matches the noise patterns "
                              "from chunks.jsonl (they stay in sections.json).")
     parser.add_argument("--filter-heading", action="append", default=[], metavar="REGEX",
-                        help="Additional case-insensitive heading regex to filter. "
-                             "Repeatable. Implies --filter.")
+                        help="Additional case-insensitive heading regex to filter. Repeatable. Implies --filter.")
     parser.add_argument("--no-default-filters", action="store_true",
                         help="Do not apply the built-in noise pattern list.")
     parser.add_argument("--source", default=None,
@@ -94,31 +97,36 @@ class Section:
 
 
 def build_page_line_index(lines: list[str]) -> list[int]:
-    """Return a list where entry i = 1-indexed line number where physical page i starts.
+    """
+    Return a list where entry i = 1-indexed line number where physical page <i> starts.
 
-    The paginated .md format from marker:
-        "\n\n{<page_id>}" + 48 dashes + "\n\n"
+    The paginated .md format from marker: "\n\n{<page_id>}" + 48 dashes + "\n\n"
     The marker appears BEFORE its page (see marker/renderers/markdown.py:77-82).
     Page 0 has no preceding marker — it begins at line 1.
     """
+
     starts: dict[int, int] = {0: 1}
+
     for i, line in enumerate(lines, start=1):
-        m = PAGE_MARKER_RE.match(line)
-        if m:
+        if m := PAGE_MARKER_RE.match(line):
             page_id = int(m.group(1))
+
             # Body of that page starts on the first non-blank line after the marker.
             body_line = i + 1
             while body_line <= len(lines) and lines[body_line - 1].strip() == "":
                 body_line += 1
             starts[page_id] = body_line
+
     if not starts:
         return [1]
+
     max_id = max(starts)
     return [starts.get(i, 1) for i in range(max_id + 1)]
 
 
 def page_for_line(page_starts: list[int], line_no: int) -> int:
     """Return 0-indexed physical page containing `line_no` (1-indexed)."""
+
     # page_starts is ascending; find the largest start <= line_no.
     page = 0
     for idx, start in enumerate(page_starts):
@@ -133,36 +141,40 @@ def get_page_labels(pdf_path: Path, n_pages: int) -> list[str]:
     try:
         import pypdfium2 as pdfium
     except ImportError:
-        print("error: pypdfium2 is not installed. Install it with: pip install pypdfium2",
-              file=sys.stderr)
+        print("error: pypdfium2 is not installed. Install it with: pip install pypdfium2", file=sys.stderr)
         raise SystemExit(1)
+
     doc = pdfium.PdfDocument(str(pdf_path))
     labels: list[str] = []
+
     for i in range(n_pages):
         try:
             label = doc.get_page_label(i)
         except Exception:
             label = ""
         labels.append(label if label else str(i + 1))
+
     return labels
 
 
 def split_pages(lines: list[str], page_starts: list[int]) -> list[str]:
-    """Return per-page markdown (strings). Page markers themselves are removed."""
+    """Return per-page Markdown (strings). Page markers themselves are removed."""
+
     pages: list[str] = []
     for i, start in enumerate(page_starts):
         end = page_starts[i + 1] - 1 if i + 1 < len(page_starts) else len(lines)
-        # Strip any page-marker line inside the page range (the marker for page i
-        # sits just *before* page_starts[i], so normally this is a no-op; keep
-        # the filter defensive).
-        body_lines = [ln for ln in lines[start - 1:end]
-                      if not PAGE_MARKER_RE.match(ln)]
+
+        # Strip any page-marker line inside the page range (the marker for page <i> sits just *before* page_starts[i],
+        # so normally this is a no-op; keep the filter defensive).
+        body_lines = [ln for ln in lines[start - 1:end] if not PAGE_MARKER_RE.match(ln)]
+
         # Trim leading/trailing blank lines for readability.
         while body_lines and body_lines[0].strip() == "":
             body_lines.pop(0)
         while body_lines and body_lines[-1].strip() == "":
             body_lines.pop()
         pages.append("\n".join(body_lines))
+
     return pages
 
 
@@ -170,17 +182,20 @@ def split_pages(lines: list[str], page_starts: list[int]) -> list[str]:
 
 
 def iter_heading_positions(lines: list[str]) -> Iterable[tuple[int, int, str]]:
-    """Yield (1-indexed line_no, level, heading_text) for real ATX headings,
-    skipping anything inside fenced code blocks."""
+    """
+    Yield (1-indexed line_no, level, heading_text) for real ATX headings, skipping anything inside fenced code blocks.
+    """
+
     in_fence = False
     for i, line in enumerate(lines, start=1):
         if FENCE_RE.match(line):
             in_fence = not in_fence
             continue
+
         if in_fence:
             continue
-        m = ATX_HEADING_RE.match(line)
-        if m:
+
+        if m := ATX_HEADING_RE.match(line):
             yield i, len(m.group(1)), m.group(2).strip()
 
 
@@ -201,6 +216,7 @@ def build_sections(
     for idx, (line_no, level, heading) in enumerate(headings):
         while stack and stack[-1].level >= level:
             stack.pop()
+
         parent = stack[-1] if stack else sections[0]
         sec = Section(
             id=f"sec-{idx + 1:04d}",
@@ -210,23 +226,27 @@ def build_sections(
             heading_line=line_no,
             line_start=line_no + 1,  # body begins after the heading line
         )
+
         parent.children_ids.append(sec.id)
         sections.append(sec)
         stack.append(sec)
 
-    # Compute line_end: a section ends just before the next heading of same-or-higher
-    # level, or at EOF.
+    # Compute line_end: a section ends just before the next heading of same-or-higher level, or at EOF.
     total_lines = len(lines)
     heading_by_index = [(h_line, level) for (h_line, level, _) in headings]
+
     for idx, sec in enumerate(sections):
         if sec.is_root:
             continue
+
         sec_idx = idx - 1  # index in `headings`
         end_line = total_lines
+
         for h_line, lvl in heading_by_index[sec_idx + 1:]:
             if lvl <= sec.level:
                 end_line = h_line - 1
                 break
+
         sec.line_end = end_line
 
     # char offsets + pages.
@@ -254,8 +274,8 @@ def heading_path_for(sec: Section, by_id: dict[str, Section]) -> str:
 
 
 def leaf_body_lines(sec: Section, sections_by_id: dict[str, Section]) -> list[int]:
-    """Return the 1-indexed line numbers that belong to sec's *own* body,
-    excluding lines taken by child sections."""
+    """Return the 1-indexed line numbers that belong to sec's *own* body, excluding lines taken by child sections."""
+
     body = set(range(sec.line_start, sec.line_end + 1))
     for child_id in sec.children_ids:
         child = sections_by_id[child_id]
@@ -264,11 +284,16 @@ def leaf_body_lines(sec: Section, sections_by_id: dict[str, Section]) -> list[in
 
 
 def group_paragraphs(lines_with_no: list[tuple[int, str]]) -> list[tuple[int, int, str]]:
-    """Turn (line_no, text) pairs into paragraph triples (line_start, line_end, text).
-    Paragraphs split on blank lines; page markers and image-only lines are stripped
-    from the paragraph text but we keep the surrounding line numbers."""
+    """
+    Turn (line_no, text) pairs into paragraph triples (line_start, line_end, text).
+
+    Paragraphs split on blank lines; page markers and image-only lines are stripped from the paragraph text,
+    but we keep the surrounding line numbers.
+    """
+
     paragraphs: list[tuple[int, int, str]] = []
     buf: list[tuple[int, str]] = []
+
     for line_no, text in lines_with_no:
         if text.strip() == "":
             if buf:
@@ -276,22 +301,20 @@ def group_paragraphs(lines_with_no: list[tuple[int, str]]) -> list[tuple[int, in
                 buf = []
         else:
             buf.append((line_no, text))
+
     if buf:
         _flush(buf, paragraphs)
     return paragraphs
 
 
 def _flush(buf: list[tuple[int, str]], out: list[tuple[int, int, str]]) -> None:
-    kept = [
-        (ln, t) for (ln, t) in buf
-        if not PAGE_MARKER_RE.match(t) and not IMAGE_ONLY_RE.match(t)
-    ]
+    kept = [(ln, t) for (ln, t) in buf if not PAGE_MARKER_RE.match(t) and not IMAGE_ONLY_RE.match(t)]
     if not kept:
         return
-    line_start = kept[0][0]
-    line_end = kept[-1][0]
-    text = "\n".join(t for _, t in kept).strip()
-    if text:
+
+    if text := "\n".join(t for _, t in kept).strip():
+        line_start = kept[0][0]
+        line_end = kept[-1][0]
         out.append((line_start, line_end, text))
 
 
@@ -299,9 +322,13 @@ def pack_chunks(
         paragraphs: list[tuple[int, int, str]],
         max_chars: int,
 ) -> list[tuple[int, int, str]]:
-    """Greedy paragraph packing up to max_chars. Oversized paragraphs are split
-    by sentence, then hard-split as a last resort. Returns triples
-    (line_start, line_end, text)."""
+    """
+    Greedy paragraph packing up to max_chars.
+
+    Oversized paragraphs are split by sentence, then hard-split as a last resort.
+    Returns triples (line_start, line_end, text).
+    """
+
     chunks: list[tuple[int, int, str]] = []
     cur_lines: tuple[int, int] | None = None
     cur_text = ""
@@ -319,10 +346,12 @@ def pack_chunks(
             for piece in _split_oversize(ptext, max_chars):
                 chunks.append((ls, le, piece))
             continue
+
         if cur_lines is None:
             cur_lines = (ls, le)
             cur_text = ptext
             continue
+
         if len(cur_text) + 2 + len(ptext) <= max_chars:
             cur_lines = (cur_lines[0], le)
             cur_text = cur_text + "\n\n" + ptext
@@ -330,6 +359,7 @@ def pack_chunks(
             flush()
             cur_lines = (ls, le)
             cur_text = ptext
+
     flush()
     return chunks
 
@@ -338,6 +368,7 @@ def _split_oversize(text: str, max_chars: int) -> list[str]:
     sentences = SENTENCE_SPLIT_RE.split(text)
     out: list[str] = []
     cur = ""
+
     for sent in sentences:
         if len(sent) > max_chars:
             if cur:
@@ -346,6 +377,7 @@ def _split_oversize(text: str, max_chars: int) -> list[str]:
             for i in range(0, len(sent), max_chars):
                 out.append(sent[i:i + max_chars])
             continue
+
         if not cur:
             cur = sent
         elif len(cur) + 1 + len(sent) <= max_chars:
@@ -353,6 +385,7 @@ def _split_oversize(text: str, max_chars: int) -> list[str]:
         else:
             out.append(cur.strip())
             cur = sent
+
     if cur.strip():
         out.append(cur.strip())
     return out
@@ -369,21 +402,20 @@ def compile_filter_patterns(use_default: bool, extra: list[str]) -> list[re.Patt
     return [re.compile(p, re.IGNORECASE) for p in patterns]
 
 
-_EMPHASIS_RE = re.compile(r"[*_`]+")
-
-
 def _normalize_heading(h: str) -> str:
-    # Strip markdown emphasis markers so patterns match regardless of **bold** etc.
-    return _EMPHASIS_RE.sub("", h).strip()
+    """Strip Markdown emphasis markers so patterns match regardless of **bold** etc."""
+    return EMPHASIS_RE.sub("", h).strip()
 
 
 def mark_filtered(sections: list[Section], patterns: list[re.Pattern]) -> None:
     if not patterns:
         return
+
     by_id = {s.id: s for s in sections}
     for sec in sections:
         if sec.is_root or sec.filtered:
             continue
+
         heading_norm = _normalize_heading(sec.heading)
         if any(p.search(heading_norm) for p in patterns):
             _mark_subtree_filtered(sec, by_id)
@@ -431,7 +463,7 @@ def main() -> int:
         running += len(ln) + 1  # +1 for the "\n" we split on
         line_char_starts.append(running)
 
-    # Pages.
+    # --- PAGES ---
     page_starts = build_page_line_index(lines)
     n_pages = len(page_starts)
     page_labels = get_page_labels(args.pdf, n_pages)
@@ -445,10 +477,9 @@ def main() -> int:
             for i in range(n_pages)
         ],
     }
-    pages_path.write_text(json.dumps(pages_json, ensure_ascii=False, indent=2),
-                          encoding="utf-8")
+    pages_path.write_text(json.dumps(pages_json, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # Sections.
+    # --- SECTIONS ---
     sections = build_sections(lines, line_char_starts, page_starts)
     sections_by_id = {s.id: s for s in sections}
 
@@ -480,13 +511,9 @@ def main() -> int:
         return d
 
     # Document-level time estimates over all non-root heading paths.
-    all_heading_paths = [
-        heading_path_for(s, sections_by_id) for s in sections if not s.is_root
-    ]
+    all_heading_paths = [heading_path_for(s, sections_by_id) for s in sections if not s.is_root]
     doc_unit = estimate_time_unit(md_text, heading_paths=all_heading_paths)
-    doc_anchor = estimate_time_anchor(
-        md_text, heading_paths=all_heading_paths, unit=doc_unit.value,
-    )
+    doc_anchor = estimate_time_anchor(md_text, heading_paths=all_heading_paths, unit=doc_unit.value)
 
     sections_json = {
         "document": source_name,
@@ -503,33 +530,30 @@ def main() -> int:
             "reason": doc_anchor.reason,
         },
     }
-    sections_path.write_text(json.dumps(sections_json, ensure_ascii=False, indent=2),
-                             encoding="utf-8")
+    sections_path.write_text(json.dumps(sections_json, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    # Chunks.
+    # --- CHUNKS ---
     chunk_id = 0
     n_chunks_written = 0
+
     with chunks_path.open("w", encoding="utf-8") as fh:
         for sec in sections:
             if sec.is_root or sec.filtered:
                 continue
-            body_lines = leaf_body_lines(sec, sections_by_id)
-            if not body_lines:
+            if not (body_lines := leaf_body_lines(sec, sections_by_id)):
                 continue
             lines_with_no = [(ln, lines[ln - 1]) for ln in body_lines]
-            paragraphs = group_paragraphs(lines_with_no)
-            if not paragraphs:
+            if not (paragraphs := group_paragraphs(lines_with_no)):
                 continue
+
             chunks = pack_chunks(paragraphs, args.max_chars)
             heading_path = heading_path_for(sec, sections_by_id)
-            # Per-section anchor refinement: prefer a marker embedded in the
-            # section's own heading path; fall back to the document anchor.
-            sec_anchor = estimate_time_anchor(
-                "", heading_paths=[heading_path], unit=doc_unit.value,
-            )
-            chunk_anchor = (
-                sec_anchor.value if sec_anchor.confidence >= 0.7 else doc_anchor.value
-            )
+
+            # Per-section anchor refinement.
+            # Prefer a marker embedded in the section's own heading path; fall back to the document anchor.
+            sec_anchor = estimate_time_anchor("", heading_paths=[heading_path], unit=doc_unit.value)
+            chunk_anchor = (sec_anchor.value if sec_anchor.confidence >= 0.7 else doc_anchor.value)
+
             for (ls, le, body) in chunks:
                 chunk_id += 1
                 physical_page = page_for_line(page_starts, ls)

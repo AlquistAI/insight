@@ -30,6 +30,7 @@ def list_sessions(
         project_id: str | None = None,
         user_id: str | None = None,
         language: str | None = None,
+        include_empty_sessions: bool = False,
         fields: str = "",
         sort_by: str = "",
         page_no: int = 1,
@@ -42,6 +43,7 @@ def list_sessions(
     :param project_id: project ID
     :param user_id: user ID
     :param language: language code
+    :param include_empty_sessions: include empty sessions (i.e. sessions with no turns)
     :param fields: field names in DB to include using projection (as CSV)
     :param sort_by: field name to sort by (for descending order user prefix "-")
     :param page_no: [pagination] page number
@@ -56,6 +58,7 @@ def list_sessions(
         project_id=project_id,
         user_id=user_id,
         language=language,
+        include_empty_sessions=include_empty_sessions,
         fields=fields,
         sort_by=sort_by,
         page_no=page_no,

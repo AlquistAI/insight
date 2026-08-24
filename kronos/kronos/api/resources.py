@@ -6,17 +6,16 @@
     Endpoints for managing resources (files) in the storage.
 """
 
-import json
-
 from fastapi import status
 from fastapi.datastructures import UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.responses import Response
 from fastapi.routing import APIRouter
 
-from common.models import api as ma, api_kronos as mak
+from common.models import api as ma
 from common.models.enums import RESOURCE_TO_MIME, ResourceType, SOURCE_TO_MIME, SourceType
-from common.utils import exceptions as exc
+from common.models.fsm import DialogueInit
+from common.utils import exceptions as exc, fsm as u_fsm
 from common.utils.api import error_handler
 from kronos.api import knowledge_base as kb_api
 from kronos.services.db.mongo import projects as db_projects
@@ -196,46 +195,6 @@ def post_resource(
     return file_path
 
 
-@router.post(
-    "/{resource_type}/init",
-    status_code=status.HTTP_201_CREATED,
-    summary="Initialize a project resource based on the default one",
-)
-@error_handler
-def init_resource(
-        resource_type: ResourceType,
-        project_id: str,
-        payload: mak.ResourceInit,
-) -> str:
-    """
-    Initialize a project resource based on the default one.
-
-    Uses the parameters defined in payload to update the default resource.
-    If there are no changes defined, the resource will not be created and the default one will be used instead.
-
-    Currently only supports the `dialogue_fsm` resource type.
-
-    :param resource_type: resource type
-    :param project_id: project ID
-    :param payload: payload with parameters to update in the default resource
-    :return: storage file path
-    """
-
-    if resource_type != ResourceType.DIALOGUE_FSM:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Resource type {resource_type.value} not supported")
-
-    path_default = get_resource_paths(resource_type=resource_type)[0]
-    content = storage.get_file(file_path=path_default)
-
-    if updated := _init_dialogue_fsm(content=content, updates=payload):
-        file_path = get_resource_paths(resource_type=resource_type, project_id=project_id)[0]
-        db_projects.touch_project(project_id=project_id)
-        storage.post_file(file_path=file_path, content=updated)
-        return file_path
-
-    return path_default
-
-
 @router.delete(
     "/{resource_type}/",
     response_model=ma.DeletedCount,
@@ -283,23 +242,25 @@ def delete_resource(
     return ma.DeletedCount(deleted_storage_blobs=storage.delete_file(file_path=file_path))
 
 
-def _init_dialogue_fsm(content: bytes, updates: mak.ResourceInit) -> bytes | None:
-    """Initialize default FSM JSON with the provided values."""
+@router.post(
+    f"/{ResourceType.DIALOGUE_FSM.value}/init",
+    status_code=status.HTTP_201_CREATED,
+    summary="Initialize a dialogue FSM JSON",
+)
+@error_handler
+def init_dialogue_fsm(project_id: str = "", payload: DialogueInit | None = None) -> str:
+    """
+    Initialize a dialogue FSM JSON.
 
-    data = json.loads(content)
-    states = data.get("states", [])
-    updated = False
+    :param project_id: project ID (overwrites default dialogue if empty)
+    :param payload: payload with custom dialogue fields
+    :return: storage file path
+    """
 
-    if updates.chatbot:
-        data["chatbot"] = updates.chatbot.model_dump()
-        updated = True
+    dialogue = u_fsm.build_qa(data=payload)
+    dialogue = dialogue.model_dump_json(indent=2).encode("utf-8")
 
-    if updates.image_url and (state := next((s for s in states if s["state_id"] == updates.image_url_state_id), None)):
-        state["command"]["text"] = updates.image_url
-        updated = True
-
-    if updates.message and (state := next((s for s in states if s["state_id"] == updates.message_state_id), None)):
-        state["command"]["text"] = updates.message
-        updated = True
-
-    return json.dumps(data, indent=2).encode("utf-8") if updated else None
+    file_path = get_resource_paths(resource_type=ResourceType.DIALOGUE_FSM, project_id=project_id)[0]
+    db_projects.touch_project(project_id=project_id)
+    storage.post_file(file_path=file_path, content=dialogue)
+    return file_path

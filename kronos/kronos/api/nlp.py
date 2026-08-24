@@ -48,6 +48,9 @@ async def rag_pipeline(project_id: str, payload: mak.RAGPayload, session_id: str
     Example of `ftr_custom`:
       [{"term": {"metadata.custom.page_title.keyword": "Awesome Title"}}]
 
+    The `usage` attribute of the response contains the aggregated token usage and costs (in USD) of
+    all the model calls performed during the pipeline run, together with the individual calls.
+
     :param project_id: project ID
     :param payload: payload with user query and additional settings (see description)
     :param session_id: session ID (for fetching conversation history)
@@ -73,6 +76,7 @@ async def rag_pipeline(project_id: str, payload: mak.RAGPayload, session_id: str
         generated_text=res.generated_text,
         highlights=res.highlights,
         matched_chunks=_update_matched_chunks(res.matched_chunks),
+        usage=res.usage,
     )
 
 
@@ -109,6 +113,7 @@ def rag_pipeline_stream(project_id: str, payload: mak.RAGPayload, session_id: st
       - `highlights`: (list) data used for source snippet highlighting
       - `matched_chunks`: (list) matched document chunks
       - `text_full`: (str) full version of the streamed text
+      - `usage`: (object) token usage & costs of the performed model calls
 
     :param project_id: project ID
     :param payload: payload with user query and additional settings (see description)

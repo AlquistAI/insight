@@ -17,7 +17,7 @@ from common.models.enums import ModelProvider
 from common.models.validation import Language, MongoID, object_id_str, utc_now
 
 _T_VER_PROJECTS = Literal[4]
-VER_PROJECTS: int = get_args(_T_VER_PROJECTS)[0]
+VER_PROJECTS = get_args(_T_VER_PROJECTS)[0]
 
 
 #################

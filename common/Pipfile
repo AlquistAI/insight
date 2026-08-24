@@ -1,0 +1,30 @@
+# This Pipfile contains dependencies for the common package.
+# It is used only for setting up an interpreter for the common package in PyCharm.
+# During deployment, each project installs subdependencies based on its own Pipfile.
+
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[requires]
+python_version = "3.11"
+
+[packages]
+bson = "*"
+cachetools = "==7.0.1"
+dnspython = "*"
+elasticsearch = "==8.17.2"
+fastapi = "==0.131.0"
+httpx = "==0.28.1"
+openai = "==2.21.0"
+psutil = "*"
+pydantic = "==2.12.5"
+pydantic-settings = "*"
+pyjwt = { extras = ["crypto"], version = "*" }
+pymongo = "==4.16.0"
+python-dateutil = "==2.9.0.post0"
+starlette = "*"
+
+[pipenv]
+sort_pipfile = true

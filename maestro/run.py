@@ -13,7 +13,6 @@ import uvicorn
 from dateutil import tz
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 from common.config import CONFIG
 from common.core import get_component_logger
@@ -21,7 +20,7 @@ from common.core.middleware import ParamToContext, RequestContextLogMiddleware
 from common.utils.swagger import setup_descriptions
 from maestro import COMPONENT_ID, COMPONENT_NAME
 from maestro.api.router import api_router
-from maestro.utils.frontend import DIR_ADMIN, DIR_INTERACTOR, prepare_clients
+from maestro.utils.frontend import DIR_ADMIN, DIR_INTERACTOR, SPAStaticFiles, prepare_clients
 
 logger = get_component_logger()
 
@@ -76,8 +75,8 @@ async def lifespan(app: FastAPI):
     )
 
     prepare_clients()
-    app.mount("/admin", StaticFiles(directory=DIR_ADMIN / "dist"), name="admin")
-    app.mount("/interactor", StaticFiles(directory=DIR_INTERACTOR / "dist"), name="interactor")
+    app.mount("/admin", SPAStaticFiles(directory=DIR_ADMIN / "dist"), name="admin")
+    app.mount("/interactor", SPAStaticFiles(directory=DIR_INTERACTOR / "dist"), name="interactor")
 
     yield
 

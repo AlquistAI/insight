@@ -15,6 +15,7 @@ from common.config import DF
 from common.models import elastic as me
 from common.models.base import CustomBaseModel
 from common.models.project import AISettings
+from common.models.usage import UsageSummary
 
 
 ####################
@@ -71,6 +72,7 @@ class RAGResponse(CustomBaseModel):
     generated_text: str | None = None
     highlights: list[RAGHighlightGroup] | None = None
     matched_chunks: list[me.KBEntry] | None = None
+    usage: UsageSummary | None = None
 
 
 class HighlightRequest(CustomBaseModel):

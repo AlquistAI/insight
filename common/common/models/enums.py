@@ -25,6 +25,17 @@ class ModelProvider(str, Enum):
     vLLM = "vLLM"
 
 
+@unique
+class RAGStep(str, Enum):
+    """Steps of the RAG pipeline that can call an AI/NLP model."""
+
+    ANSWER_RERANKING = "answer_reranking"
+    GENERATION = "generation"
+    QUERY_REWRITE = "query_rewrite"
+    RERANKING = "reranking"
+    RETRIEVAL = "retrieval"
+
+
 ############
 ## CONFIG ##
 ############

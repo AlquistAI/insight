@@ -8,25 +8,29 @@
 
 import hashlib
 import io
+import json
 import os
 from pathlib import Path
+from typing import Generator, Literal
 from urllib.parse import urlparse
 
 import requests
 from fastapi import status
 from fastapi.datastructures import Headers, UploadFile
+from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import HTTPException
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.routing import APIRouter
 
 from common.config import DF
 from common.core import get_component_logger
 from common.models import api as ma, api_ragnarok as mar
+from common.models.crawling import CrawlOptions
 from common.models.enums import MIME_TO_SOURCE, ResourceType, SOURCE_TO_MIME, SourceType
 from common.models.knowledge_base import KnowledgeBase
 from common.utils.api import encode_header_string, error_handler
-from kronos.services import ragnarok
-from kronos.services.crawler import CrawlOptions, Crawler
+from kronos.services import alchemist, ragnarok
+from kronos.services.crawler import Crawler
 from kronos.services.db.mongo import knowledge_base as db_kb, projects as db_projects
 from kronos.services.storage import get_storage
 from kronos.services.storage.base import get_resource_dir, get_resource_paths
@@ -262,7 +266,7 @@ def upload_file_kb_bulk(
         upload_file_kb(
             file=file,
             project_id=project_id,
-            source_file=str(source_path / file.filename) if source_path else None,
+            source_file=str(source_path / file.filename) if source_path and file.filename else "",
             source_type=source_type,
             name=name,
             description=description,
@@ -348,6 +352,119 @@ def upload_marker_kb(
 
     db_kb.COLL_KB.update_one({"_id": data.id}, {"$set": {"source_type": SourceType.PDF.value}})
     return db_kb.get_kb(kb_id=data.id)
+
+
+@router.post(
+    "/pdf/advanced",
+    response_class=StreamingResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Upload PDF as knowledge base using the advanced PDF conversion",
+)
+@error_handler
+def upload_pdf_kb_advanced(
+        file: UploadFile,
+        project_id: str,
+        kb_id: str = "",
+        source_file: str = "",
+        name: str = "",
+        description: str = "",
+        language: str = "",
+        custom_metadata: str = "",
+        enable_highlights: bool = False,
+        ocr: Literal["auto", "off", "force"] = "off",
+        hierarchy: Literal["auto", "toc", "numbering", "font-size", "none"] = "auto",
+        hierarchy_threshold: float = 0.6,
+        hierarchy_tolerance: float = 0.75,
+) -> StreamingResponse:
+    """
+    Upload PDF as knowledge base using the advanced PDF conversion, streaming NDJSON progress.
+
+    Streams progress events so the client can show a real progress bar. The dominant cost is the PDF -> Markdown
+    conversion, whose per-page-batch progress is forwarded as {"stage": "convert", "percent": ...}.
+    A {"stage": "index"} line marks the start of chunking/indexing and the terminal
+    {"stage": "done", "knowledge_base": {...}} line carries the created knowledge base.
+    On failure a {"type": "error", "detail": ...} line is emitted before the stream ends.
+
+    :param file: uploaded PDF file
+    :param project_id: project ID
+    :param kb_id: knowledge base ID (random generated if empty)
+    :param source_file: source file name (path) of the original PDF file
+    :param name: knowledge base name
+    :param description: knowledge base description
+    :param language: text language (project language used if not provided)
+    :param custom_metadata: custom metadata (as JSON string)
+    :param enable_highlights: build and index chunks required for the highlighting functionality
+    :param ocr: [conversion] OCR mode
+    :param hierarchy: [conversion] recover heading levels before export
+    :param hierarchy_threshold: [conversion] minimum fraction of detected headings a signal must cover
+    :param hierarchy_tolerance: [conversion] heading heights within this many points are treated as the same level
+    :return: NDJSON stream of upload progress ending with the created knowledge base
+    """
+
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "You must provide a file with the .pdf extension")
+
+    # Read the PDF once: the bytes are streamed to Alchemist for conversion and reused for the marker upload.
+    pdf_bytes = file.file.read()
+    filename = file.filename
+
+    def event_stream() -> Generator[str, None, None]:
+        try:
+            # Step 1: Convert the PDF to Markdown, forwarding per-batch conversion progress to the client
+            content_md: bytes | None = None
+            for event in alchemist.convert_pdf2md(
+                    file=io.BytesIO(pdf_bytes),
+                    ocr=ocr,
+                    hierarchy=hierarchy,
+                    hierarchy_threshold=hierarchy_threshold,
+                    hierarchy_tolerance=hierarchy_tolerance,
+            ):
+                if event.get("done"):
+                    content_md = event["content"].encode()
+                else:
+                    yield json.dumps({
+                        "stage": "convert",
+                        "percent": event.get("percent", 0),
+                        "eta_seconds": event.get("eta_seconds"),
+                    }) + "\n"
+
+            if content_md is None:
+                raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Conversion did not return any content")
+
+            # Step 2: Chunk + embed + index the converted Markdown (and store the original PDF as the source)
+            yield json.dumps({"stage": "index"}) + "\n"
+
+            file_md = UploadFile(
+                file=io.BytesIO(content_md),
+                filename=f"{Path(filename).stem}.md",
+                headers=Headers({"Content-Type": SOURCE_TO_MIME[SourceType.MD]}),
+            )
+
+            file_pdf = UploadFile(
+                file=io.BytesIO(pdf_bytes),
+                filename=filename,
+                headers=Headers({"Content-Type": SOURCE_TO_MIME[SourceType.PDF]}),
+            )
+
+            data = upload_marker_kb(
+                files=[file_pdf, file_md],
+                project_id=project_id,
+                kb_id=kb_id,
+                source_file=source_file or filename,
+                name=name,
+                description=description,
+                language=language,
+                custom_metadata=custom_metadata,
+                enable_highlights=enable_highlights,
+            )
+
+            yield json.dumps({"stage": "done", "knowledge_base": jsonable_encoder(data)}) + "\n"
+
+        except Exception as e:
+            logger.exception("Advanced streaming upload failed for project %s: %s", project_id, str(e))
+            yield json.dumps({"type": "error", "detail": str(e)}) + "\n"
+
+    return StreamingResponse(event_stream(), media_type="application/x-ndjson")
 
 
 @router.post(

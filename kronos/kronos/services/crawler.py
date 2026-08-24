@@ -16,11 +16,10 @@ from urllib.robotparser import RobotFileParser
 
 import requests
 from bs4 import BeautifulSoup
-from pydantic import Field, field_validator
 from requests.structures import CaseInsensitiveDict
 
 from common.core import get_component_logger
-from common.models.base import CustomBaseModel
+from common.models.crawling import CrawlOptions
 from common.utils import exceptions as exc
 
 logger = get_component_logger()
@@ -55,29 +54,6 @@ HTML_BANNED_EXT = {
     "mp4", "otf", "pdf", "png", "ppt", "pptx", "rar", "svg", "tar", "tgz", "ttf", "wav", "webp", "woff", "woff2",
     "xls", "xlsx", "zip",
 }
-
-
-class CrawlOptions(CustomBaseModel):
-    delay: float = 1.0
-    max_pages: int = 1000
-    timeout: float | tuple[float, float] = (10.0, 30.0)
-
-    exclude_mimetypes: set[str] = Field(default_factory=set)
-    exclude_query_params: set[str] = Field(default_factory=set)
-    exclude_substrings: set[str] = Field(default_factory=set)
-    exclude_suffixes: set[str] = Field(default_factory=set)
-
-    same_host_only: bool = True
-
-    @field_validator("exclude_mimetypes", "exclude_query_params", "exclude_substrings", "exclude_suffixes")
-    @classmethod
-    def clean_exclude_set(cls, v: set[str]) -> set[str]:
-        return {xs.lower() for x in v if (xs := x.strip())}
-
-    @field_validator("exclude_mimetypes", "exclude_query_params", "exclude_suffixes")
-    @classmethod
-    def strip_exclude_set(cls, v: set[str]) -> set[str]:
-        return {x.strip("/").strip() for x in v}
 
 
 class Scraper:

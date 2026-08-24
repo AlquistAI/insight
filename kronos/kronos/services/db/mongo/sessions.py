@@ -89,6 +89,7 @@ def list_sessions(
         project_id: str | None = None,
         user_id: str | None = None,
         language: str | None = None,
+        include_empty_sessions: bool = False,
         fields: set[str] | None = None,
         sort_by: str | None = None,
         page_no: int = 1,
@@ -101,6 +102,7 @@ def list_sessions(
     :param project_id: project ID
     :param user_id: user ID
     :param language: language code
+    :param include_empty_sessions: include empty sessions (i.e. first_user_query == "")
     :param fields: set of fields to include using projection (returns data as dict)
     :param sort_by: field name to sort by (for descending order user prefix "-")
     :param page_no: [pagination] page number
@@ -114,6 +116,10 @@ def list_sessions(
         "user_id": user_id,
         "language": language,
     }
+
+    if not include_empty_sessions:
+        # noinspection PyTypeChecker
+        ftr["first_user_query"] = {"$ne": ""}
 
     ftr = process_filter(ftr)
     projection = prepare_projection(fields)

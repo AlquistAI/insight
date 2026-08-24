@@ -16,7 +16,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from common.models.enums import SourceType
 from common.utils import exceptions as exc
 from ragnarok.document_loaders.docx import PyDOCXLoader
-from ragnarok.document_loaders.marker import MarkerMDLoader
+from ragnarok.document_loaders.md import MDHierarchyLoader
 from ragnarok.document_loaders.pptx import PyPPTXLoader
 from ragnarok.document_loaders.xlsx import OpenPyXLLoader
 
@@ -79,7 +79,7 @@ def parse_html(path: str, chunk_size: int = 2000, chunk_overlap: int = 200) -> l
 
 
 def parse_md(path: str, chunk_size: int = 2000, chunk_overlap: int = 200) -> list[Document]:
-    if documents := MarkerMDLoader(path).load():
+    if documents := MDHierarchyLoader(path).load():
         return documents
     return parse_txt(path=path, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 

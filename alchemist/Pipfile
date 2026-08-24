@@ -1,0 +1,22 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[requires]
+python_version = "3.11"
+
+[packages]
+common = { path = "../common" }
+docling = "==2.111.0"
+fastapi = "==0.131.0"
+pydantic = "==2.12.5"
+pypdfium2 = "==5.11.0"
+python-dateutil = "==2.9.0.post0"
+python-multipart = "==0.0.22"
+uvicorn = { extras = ["standard"], version = "==0.41.0" }
+
+[dev-packages]
+
+[pipenv]
+sort_pipfile = true

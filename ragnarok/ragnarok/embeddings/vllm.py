@@ -10,6 +10,7 @@ import numpy as np
 from openai import OpenAI
 
 from common.models.enums import ModelProvider
+from common.models.usage import ModelUsage
 from common.utils.misc import generate_batches
 from ragnarok.embeddings.base import EmbeddingBase
 
@@ -31,17 +32,19 @@ class VLLMEmbeddings(EmbeddingBase):
             base_url=base_url,
         )
 
-    def vector(self, s: str, normalize: bool = True) -> np.ndarray:
+    def vector(self, s: str, normalize: bool = True) -> tuple[np.ndarray, ModelUsage | None]:
         res = self.client.embeddings.create(input=s, model=self.model_name)
-        return np.array(res.data[0].embedding)
+        return np.array(res.data[0].embedding), self._build_usage(res.usage)
 
-    def vector_batch(self, batch: list[str], normalize: bool = True) -> np.ndarray:
+    def vector_batch(self, batch: list[str], normalize: bool = True) -> tuple[np.ndarray, ModelUsage | None]:
         result = []
+        usages = []
 
         for batch_slice in generate_batches(batch, 512):
             response = self.client.embeddings.create(input=batch_slice, model=self.model_name)
             embeddings = list(map(lambda x: x.embedding, response.data))
             result += embeddings
+            usages.append(self._build_usage(response.usage))
 
         # embeddings are already normalized
-        return np.array(result).reshape(-1, self.dim)
+        return np.array(result).reshape(-1, self.dim), self._merge_usage(usages)

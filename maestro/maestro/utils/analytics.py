@@ -14,6 +14,8 @@ from dateutil import tz
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import MONTHLY, rrule
 
+from common.config import CONFIG
+
 
 @unique
 class TimeRange(str, Enum):
@@ -104,12 +106,14 @@ def get_detailed_time_range(time_range: TimeRange) -> list[tuple[datetime, datet
 def build_start_session_query(start: datetime, end: datetime, project_id: str) -> dict[str, Any]:
     """Build query to get session start times."""
 
+    func_name = "func_name" if CONFIG.MIGRATION_LOG_INDEX_DONE else "func_name.keyword"
+
     return {
         "size": 0,
         "query": {
             "bool": {
                 "must": [
-                    {"term": {"func_name.keyword": "start_session"}},
+                    {"term": {func_name: "start_session"}},
                     {"term": {"project_id.keyword": project_id}},
                     {"range": {"@timestamp": {"gte": start.isoformat(), "lt": end.isoformat()}}},
                 ],

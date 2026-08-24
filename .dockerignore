@@ -13,6 +13,15 @@
 !/common/common/
 !/common/pyproject.toml
 
+# Alchemist
+!/alchemist/
+/alchemist/*
+!/alchemist/alchemist/
+!/alchemist/Pipfile
+!/alchemist/Pipfile.lock
+!/alchemist/run.py
+!/alchemist/start.sh
+
 # Kronos
 !/kronos/
 /kronos/*

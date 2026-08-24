@@ -14,8 +14,12 @@ import numpy as np
 from common.config import DF
 from common.models import elastic as me
 from common.models.api_ragnarok import ConversationTurn
+from common.models.enums import RAGStep
 from common.models.project import AISettings, EmbeddingModelSettings
+from common.models.usage import ModelUsage
+from common.utils.misc import yield_from_with_return
 from common.utils.prompts import build_messages, build_prompt_general
+from common.utils.usage import UsageTracker
 from ragnarok.generation import LLMFactory
 from ragnarok.rerank import RerankFactory
 from ragnarok.utils import lc
@@ -36,9 +40,14 @@ def rag(
         settings: AISettings | None = None,
         ftr_custom: list[dict[str, Any]] | None = None,
         stream: bool = False,
-) -> tuple[list[me.KBEntry], str | Generator[str, None, None] | None]:
+        usage: UsageTracker | None = None,
+) -> tuple[list[me.KBEntry], str | Generator[str, None, ModelUsage | None] | None]:
     """
     Get answer for a user query using RAG pipeline.
+
+    The token usage & costs of all the performed model calls are recorded in the given usage tracker.
+    In the streaming mode, the usage of the generation call is only known once the returned generator
+    is exhausted - it is added to the tracker automatically as its last step.
 
     :param project_id: project ID
     :param query: user query
@@ -48,23 +57,27 @@ def rag(
     :param settings: AI/NLP functionality settings
     :param ftr_custom: custom filters for getting KNN matches from VectorStore
     :param stream: stream the LLM response (return generator)
+    :param usage: tracker collecting the token usage & costs of the model calls
     :return: matched documents (chunks), response text / text chunk generator
     """
 
     settings = settings or AISettings()
+    usage = usage or UsageTracker()
     return_vectors = settings.generation.enabled
 
     # query rewrite
     history_messages = process_context(context or [])
-    rewritten_query = rewrite_query(
+    rewritten_query, usage_rewrite = rewrite_query(
         query=query,
         history_messages=history_messages,
         lang=lang,
         settings=settings.generation.model,
     )
 
+    usage.add(usage_rewrite, step=RAGStep.QUERY_REWRITE)
+
     # cosine similarity
-    hits_cosine = VS.knn_search(
+    hits_cosine, usage_emb = VS.knn_search(
         query=rewritten_query,
         project_id=project_id,
         kb_ids=kb_ids,
@@ -73,7 +86,9 @@ def rag(
         return_vectors=return_vectors,
     )
 
-    # BM25
+    usage.add(usage_emb, step=RAGStep.RETRIEVAL)
+
+    # BM25 (no model call -> no usage/costs)
     hits_bm25 = VS.bm25_search(
         query=rewritten_query,
         project_id=project_id,
@@ -89,9 +104,10 @@ def rag(
     # reranking
     if (sr := settings.reranking).enabled:
         reranker = RF.get_model(provider=sr.model.provider, name=sr.model.name)
-        ids = reranker.rerank(query=rewritten_query, documents=documents, k=sr.k)
+        ids, usage_rerank = reranker.rerank(query=rewritten_query, documents=documents, k=sr.k)
         hits = [hits[idx] for idx in ids]
         documents = [hit.source.text for hit in hits]
+        usage.add(usage_rerank, step=RAGStep.RERANKING)
 
     # generation
     if (sg := settings.generation).enabled:
@@ -99,9 +115,14 @@ def rag(
         system_prompt = build_prompt_general(kb_documents=documents, lang=lang)
         messages = build_messages(system_prompt=system_prompt, query=query, history=history_messages)
 
-        gen_func = model.chat_completion_stream if stream else model.chat_completion
-        # noinspection PyArgumentList
-        gen_res = gen_func(messages=messages, temperature=sg.temperature)
+        if stream:
+            gen_res = yield_from_with_return(
+                gen=model.chat_completion_stream(messages=messages, temperature=sg.temperature),
+                on_return=lambda u: usage.add(u, step=RAGStep.GENERATION),
+            )
+        else:
+            gen_res, usage_gen = model.chat_completion(messages=messages, temperature=sg.temperature)
+            usage.add(usage_gen, step=RAGStep.GENERATION)
     else:
         gen_res = None
 
@@ -112,6 +133,7 @@ def rerank_by_answer(
         matched_chunks: list[me.KBEntry],
         answer: str | None,
         emb_settings: EmbeddingModelSettings | None = None,
+        usage: UsageTracker | None = None,
 ) -> list[me.KBEntry]:
     """
     Rerank the matched chunks based on the cosine similarity to the answer.
@@ -119,6 +141,7 @@ def rerank_by_answer(
     :param matched_chunks: matched chunks
     :param answer: full answer (reranking not performed if None/empty)
     :param emb_settings: embedding model settings
+    :param usage: tracker collecting the token usage & costs of the model calls
     :return: chunks in reranked order with updated scores
     """
 
@@ -128,8 +151,11 @@ def rerank_by_answer(
     emb_settings = emb_settings or EmbeddingModelSettings()
     model, _ = lc.get_embeddings(settings=emb_settings)
     emb_chunks = np.asarray([chunk.source.vector for chunk in matched_chunks])
-    emb_answer = np.asarray(model.embed_query(answer))
-    sim = np.dot(emb_chunks, emb_answer).tolist()
+    emb_answer, usage_emb = model.embed_query_with_usage(answer)
+    sim = np.dot(emb_chunks, np.asarray(emb_answer)).tolist()
+
+    if usage is not None:
+        usage.add(usage_emb, step=RAGStep.ANSWER_RERANKING)
 
     for chunk, score in zip(matched_chunks, sim):
         chunk.score = score

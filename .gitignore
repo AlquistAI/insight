@@ -42,7 +42,7 @@ venv.bak/
 *.log
 
 # Misc
-/data/
+/data
 /maestro/frontend/
 .DS_Store
 

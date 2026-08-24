@@ -7,6 +7,7 @@
 
     ToDo: Kronos resources in Azure Storage that do not belong to any KB.
     ToDo: Kronos KB that is not present in Ragnarok.
+    ToDo: Kronos empty sessions (older than 24 hours).
     ToDo: Option to automatically delete orphaned resources.
 """
 

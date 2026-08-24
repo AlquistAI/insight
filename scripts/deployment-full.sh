@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ### CONFIGURATION ###
-APPS=("kronos" "maestro" "ragnarok")
+APPS=("alchemist" "kronos" "maestro" "ragnarok")
 
 echo "==== Reading server config ===="
 touch config.local.env
@@ -13,15 +13,13 @@ KEYCLOAK_URL="${KEYCLOAK_URL_EXTERNAL:-http://localhost:8080}"
 KRONOS_URL="${KRONOS_URL_EXTERNAL:-http://localhost:9625}"
 MAESTRO_URL="${MAESTRO_URL_EXTERNAL:-http://localhost:8020}"
 RAGNAROK_URL="${RAGNAROK_URL_EXTERNAL:-http://localhost:9696}"
-VLLM_EMBEDDING_URL="http://localhost:8123"
 
 REALM_NAME="${KEYCLOAK_REALM:-alquist}"
 CLIENT_ID="${KEYCLOAK_CLIENT_ID:-alquist-insight-development}"
 CLIENT_REDIRECT_URI="${MAESTRO_URL}/admin/*"
 
 DEFAULT_PROJECT_ID="test"
-DEFAULT_PROJECT_LANG="en"
-DEFAULT_PROJECT_LANG_CODE="en-US"
+DEFAULT_PROJECT_LANG="en-US"
 
 # Env vars used in docker-compose.yaml
 REQUIRED_DC_VARS=(
@@ -66,9 +64,9 @@ done
 
 ### START DOCKER COMPOSE ###
 echo "==== Preparing directories required for docker compose ===="
-mkdir -p data/{elasticsearch,keycloak,maestro/frontend,ragnarok/models}
+mkdir -p data/{alchemist/{docling,huggingface},elasticsearch,keycloak,maestro/frontend,ragnarok/models}
 sudo chown -R 1000:1000 data/{elasticsearch,keycloak}
-sudo chown -R 999:999 data/{maestro,ragnarok}
+sudo chown -R 999:999 data/{alchemist,maestro,ragnarok}
 
 echo "==== Starting docker compose ===="
 echo "The vllm-generation container waits for the vllm-embedding container to be ready before it starts."
@@ -88,11 +86,6 @@ until curl -fs "$RAGNAROK_URL/health" > /dev/null; do
   sleep 5
 done
 
-until curl -fs "$VLLM_EMBEDDING_URL/health" > /dev/null; do
-  echo "vLLM embedding model not ready yet..."
-  sleep 30
-done
-
 ### UPLOAD DEFAULT DIALOGUE/IMAGE FILES IF MISSING ###
 echo "==== Uploading default dialogue/image files ===="
 
@@ -100,10 +93,10 @@ if curl -fs "$KRONOS_URL/resources/dialogue_fsm/" -H "X-Api-Key: $KRONOS_API_KEY
   echo "Default dialogue FSM file already exists. Skipping."
 else
   curl -X "POST" \
-    "$KRONOS_URL/resources/dialogue_fsm/" \
+    "$KRONOS_URL/resources/dialogue_fsm/init" \
     -H "X-Api-Key: $KRONOS_API_KEY" \
-    -H "Content-Type: multipart/form-data" \
-    -F "file=@fsm/default_$DEFAULT_PROJECT_LANG.json;type=application/json"
+    -H "Content-Type: application/json" \
+    -d '{"language": "'$DEFAULT_PROJECT_LANG'"}'
 
   echo -e "\nDefault dialogue FSM file created."
 fi
@@ -133,13 +126,13 @@ else
     -d '{
       "_id": "'$DEFAULT_PROJECT_ID'",
       "name": "Default Test Project",
-      "language": "'$DEFAULT_PROJECT_LANG_CODE'"
+      "language": "'$DEFAULT_PROJECT_LANG'"
     }'
 
   echo -e "\n\nProject '$DEFAULT_PROJECT_ID' created.\n"
 
   curl -X "POST" \
-    "$KRONOS_URL/knowledge_base/file/bulk?project_id=$DEFAULT_PROJECT_ID&source_type=txt&language=$DEFAULT_PROJECT_LANG_CODE" \
+    "$KRONOS_URL/knowledge_base/file/bulk?project_id=$DEFAULT_PROJECT_ID&source_type=txt&language=$DEFAULT_PROJECT_LANG" \
     -H "X-Api-Key: $KRONOS_API_KEY" \
     -H "Content-Type: multipart/form-data" \
     -F "files=@common/common/config.py;type=text/x-python" \

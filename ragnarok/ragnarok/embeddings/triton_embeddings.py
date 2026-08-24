@@ -16,6 +16,7 @@ import tritonclient.http as httpclient
 from common.config import CONFIG
 from common.core import get_component_logger
 from common.models.enums import ModelProvider
+from common.models.usage import ModelUsage
 from common.utils.misc import generate_batches
 from ragnarok.embeddings.base import EmbeddingBase
 
@@ -38,10 +39,16 @@ class TritonEmbeddings(EmbeddingBase):
             dim=MODEL_DIMS.get(model_name, 0),
         )
 
-    def vector(self, s: str, normalize: bool = True) -> np.ndarray:
-        return self.vector_batch([s], normalize=normalize)[0]
+    def vector(self, s: str, normalize: bool = True) -> tuple[np.ndarray, ModelUsage | None]:
+        vectors, usage = self.vector_batch([s], normalize=normalize)
+        return vectors[0], usage
 
-    def vector_batch(self, batch: list[str], normalize: bool = True, timeout: float | None = None) -> np.ndarray:
+    def vector_batch(
+            self,
+            batch: list[str],
+            normalize: bool = True,
+            timeout: float | None = None,
+    ) -> tuple[np.ndarray, ModelUsage | None]:
         result = None
 
         for batch_slice in generate_batches(batch, 128):
@@ -56,7 +63,7 @@ class TritonEmbeddings(EmbeddingBase):
 
         # embeddings are already normalized
         result = np.array([]) if result is None else result
-        return result.reshape(-1, self.dim)
+        return result.reshape(-1, self.dim), None
 
     def _infer(self, inputs, outputs, timeout: float | None = None):
 

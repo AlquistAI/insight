@@ -201,6 +201,7 @@ def query_rag(
             system_response=text_full,
             matched_kb_ids=[x["_source"]["metadata"]["kb_id"] for x in matched_chunks],
             matched_pages=[x["_source"]["metadata"]["page"] for x in matched_chunks],
+            usage=last_chunk.get("usage"),
         )
 
     return response_generator()
@@ -262,6 +263,7 @@ async def query_rag_top_n(
         user_query=query,
         matched_kb_ids=[x["_source"]["metadata"]["kb_id"] for x in matched_chunks],
         matched_pages=[x["_source"]["metadata"]["page"] for x in matched_chunks],
+        usage=res.get("usage"),
     )
 
     return res
@@ -313,6 +315,7 @@ async def create_turn(
         system_response: str = "",
         matched_kb_ids: list[str] | None = None,
         matched_pages: list[int] | None = None,
+        usage: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """
     Create a turn in Kronos.
@@ -326,6 +329,7 @@ async def create_turn(
     :param system_response: system response to the user's query
     :param matched_kb_ids: list of matched knowledge base IDs
     :param matched_pages: list of matched pages
+    :param usage: token usage & costs of the model calls performed for the turn
     :return: created turn data or None if not created
     """
 
@@ -340,6 +344,7 @@ async def create_turn(
         "system_response": system_response,
         "matched_kb_ids": matched_kb_ids or [],
         "matched_pages": matched_pages or [],
+        "usage": usage,
     }
 
     async with httpx.AsyncClient() as client:

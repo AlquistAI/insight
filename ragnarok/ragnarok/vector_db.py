@@ -18,7 +18,6 @@ from cachetools.func import lru_cache
 from dateutil import tz
 from elastic_transport.client_utils import DefaultType as ESDefaultType
 from elasticsearch import Elasticsearch, helpers
-from langchain.embeddings.base import Embeddings
 from langchain_community.vectorstores import ElasticsearchStore
 from langchain_core.documents import Document
 
@@ -28,6 +27,7 @@ from common.core.logger_utils import log_elapsed_time
 from common.models import elastic as me
 from common.models.enums import SourceType
 from common.models.project import EmbeddingModelSettings, RetrievalSettings
+from common.models.usage import ModelUsage
 from common.utils import exceptions as exc
 from common.utils.misc import dict_to_dot_keys, generate_batches
 from common.utils.singleton import Singleton
@@ -63,9 +63,15 @@ DEFAULT_INDEX_SETTINGS = {
 
                     "chunk_idx": {"type": "integer"},
                     "chunk_offset": {"type": "integer", "index": False},
+                    "line_start": {"type": "integer", "index": False},
+                    "line_end": {"type": "integer", "index": False},
 
                     "page": {"type": "integer"},
+                    "page_label": {"type": "keyword", "index": False},
                     "total_pages": {"type": "integer"},
+
+                    "time_anchor": {"type": "keyword", "ignore_above": 256},
+                    "time_unit": {"type": "keyword", "ignore_above": 256},
 
                     "creationdate": {"type": "date"},
                     "moddate": {"type": "date"},
@@ -122,7 +128,7 @@ class VectorStore(metaclass=Singleton):
     def __init__(self):
         self.index_name = CONFIG.ES_INDEX_EMBEDDINGS
         self.index_name_highlights = CONFIG.ES_INDEX_HIGHLIGHT_CHUNKS
-        self._embeddings: dict[str, Embeddings] = {}
+        self._embeddings: dict[str, lc.UsageAwareEmbeddings] = {}
 
         self.es = Elasticsearch(
             hosts=str(CONFIG.ES_URL),
@@ -160,7 +166,7 @@ class VectorStore(metaclass=Singleton):
         settings["mappings"]["properties"]["vector"]["dims"] = dim
         self.es.indices.create(index=name, body=settings)
 
-    def _prepare_embedding_model(self, emb_settings: EmbeddingModelSettings) -> Embeddings:
+    def _prepare_embedding_model(self, emb_settings: EmbeddingModelSettings) -> lc.UsageAwareEmbeddings:
         """
         Retrieve or prepare embedding model instance and set up default indices.
 
@@ -273,7 +279,7 @@ class VectorStore(metaclass=Singleton):
 
         for doc in documents:
             md = dict(doc.metadata)
-            raw_id = f"{md.get('project_id')}|{md.get('kb_id')}|{md.get('source_file')}|{md.get('page')}"
+            raw_id = f"{md['project_id']}|{md['kb_id']}|{md['source_file']}|{md['page']}"
             doc_id = hashlib.md5(raw_id.encode("utf-8")).hexdigest()
             text = doc.page_content
 
@@ -447,7 +453,7 @@ class VectorStore(metaclass=Singleton):
             settings: RetrievalSettings | None = None,
             ftr_custom: list[dict[str, Any]] | None = None,
             return_vectors: bool = False,
-    ) -> list[me.KBEntry]:
+    ) -> tuple[list[me.KBEntry], ModelUsage | None]:
         """
         Perform a KNN vector search for a given query.
 
@@ -457,7 +463,7 @@ class VectorStore(metaclass=Singleton):
         :param settings: retrieval settings
         :param ftr_custom: custom filters added to the default ones
         :param return_vectors: return embedding vectors in the response
-        :return: search operation result
+        :return: search operation result, usage & cost of embedding the query (None if not reported)
         """
 
         settings: RetrievalSettings = settings or RetrievalSettings()
@@ -472,11 +478,13 @@ class VectorStore(metaclass=Singleton):
         if ftr_custom:
             ftr.extend(ftr_custom)
 
+        query_vector, usage = embeddings.embed_query_with_usage(query)
+
         res = self.es.search(
             index=self.get_index_name(model_name=settings.model.name),
             knn={
                 "field": "vector",
-                "query_vector": embeddings.embed_query(query),
+                "query_vector": query_vector,
                 "k": settings.k_emb,
                 "num_candidates": settings.num_candidates,
                 "filter": ftr,
@@ -487,7 +495,7 @@ class VectorStore(metaclass=Singleton):
 
         if res["hits"]["total"]["value"] == 0:
             raise exc.RetrievalError("KNN search did not return any matches")
-        return [me.KBEntry.model_validate(x) for x in res["hits"]["hits"]]
+        return [me.KBEntry.model_validate(x) for x in res["hits"]["hits"]], usage
 
     @log_elapsed_time
     def bm25_search(
@@ -828,7 +836,7 @@ class VectorStore(metaclass=Singleton):
             query: str,
             k: int = 10,
             num_candidates: int = 200,
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], ModelUsage | None]:
         """
         Return highlight spans for a page using hierarchical retrieval.
 
@@ -847,12 +855,12 @@ class VectorStore(metaclass=Singleton):
         :param query: user query
         :param k: top-k results (kept for L1 top-k; L0 uses a small fixed pool)
         :param num_candidates: number of candidates for approximate KNN (lower -> faster, higher -> more accurate)
-        :return: highlight spans
+        :return: highlight spans, usage & cost of embedding the query (None if not reported by the model)
         """
 
         index_name = self.get_index_name_highlights(model_name=emb_settings.name)
         embeddings = self._prepare_embedding_model(emb_settings=emb_settings)
-        query_vector = embeddings.embed_query(query)
+        query_vector, usage = embeddings.embed_query_with_usage(query)
 
         base_filter = [
             {"term": {"metadata.kb_id": kb_id}},
@@ -910,7 +918,7 @@ class VectorStore(metaclass=Singleton):
             })
 
         if not candidates:
-            return []
+            return [], usage
 
         candidates.sort(key=lambda c: c["combined"], reverse=True)
         best = candidates[0]
@@ -929,4 +937,4 @@ class VectorStore(metaclass=Singleton):
             "chunk_level": "L0",
         }] + best["l1_top"]
 
-        return spans
+        return spans, usage

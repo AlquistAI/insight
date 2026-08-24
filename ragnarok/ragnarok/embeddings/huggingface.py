@@ -13,6 +13,7 @@ from sklearn.preprocessing import normalize as sk_normalize
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
 from common.models.enums import ModelProvider
+from common.models.usage import ModelUsage
 from common.utils.misc import generate_batches
 from ragnarok.embeddings.base import EmbeddingBase
 
@@ -33,10 +34,11 @@ class HFTransformer(EmbeddingBase):
             dim=self.model_config.hidden_size,
         )
 
-    def vector(self, s: str, normalize: bool = True) -> np.ndarray:
-        return self.vector_batch([s], normalize=normalize)[0]
+    def vector(self, s: str, normalize: bool = True) -> tuple[np.ndarray, ModelUsage | None]:
+        vectors, usage = self.vector_batch([s], normalize=normalize)
+        return vectors[0], usage
 
-    def vector_batch(self, batch: list[str], normalize: bool = True) -> np.ndarray:
+    def vector_batch(self, batch: list[str], normalize: bool = True) -> tuple[np.ndarray, ModelUsage | None]:
         result = None
 
         for batch_slice in generate_batches(batch, n=16):
@@ -44,7 +46,7 @@ class HFTransformer(EmbeddingBase):
             result = res if result is None else np.append(result, res, axis=0)
 
         result = np.array([]) if result is None else result
-        return sk_normalize(result) if normalize else result
+        return (sk_normalize(result) if normalize else result), None
 
     def _vector_batch(self, batch: list[str]) -> np.ndarray:
 
@@ -95,8 +97,9 @@ class HFSentenceTransformer(EmbeddingBase):
             dim=self.model.get_sentence_embedding_dimension(),
         )
 
-    def vector(self, s: str, normalize: bool = True) -> np.ndarray:
-        return self.vector_batch([s], normalize=normalize)[0]
+    def vector(self, s: str, normalize: bool = True) -> tuple[np.ndarray, ModelUsage | None]:
+        vectors, usage = self.vector_batch([s], normalize=normalize)
+        return vectors[0], usage
 
-    def vector_batch(self, batch: list[str], normalize: bool = True) -> np.ndarray:
-        return self.model.encode(batch, normalize_embeddings=normalize)
+    def vector_batch(self, batch: list[str], normalize: bool = True) -> tuple[np.ndarray, ModelUsage | None]:
+        return self.model.encode(batch, normalize_embeddings=normalize), None

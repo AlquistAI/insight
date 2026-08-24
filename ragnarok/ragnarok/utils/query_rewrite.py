@@ -10,6 +10,7 @@ from common.config import DF
 from common.core import get_component_logger
 from common.models.api_ragnarok import ConversationTurn
 from common.models.project import GenerativeModelSettings
+from common.models.usage import ModelUsage
 from common.utils.prompts import build_messages, build_prompt_rewrite
 from ragnarok.generation import LLMFactory
 
@@ -42,7 +43,7 @@ def rewrite_query(
         history_messages: list[dict[str, str]],
         lang: str = DF.LANG,
         settings: GenerativeModelSettings | None = None,
-) -> str:
+) -> tuple[str, ModelUsage | None]:
     """
     Rewrite a query for retrieval based on the message history.
 
@@ -50,11 +51,11 @@ def rewrite_query(
     :param history_messages: list of context messages
     :param lang: conversation language
     :param settings: LLM settings
-    :return: rewritten query
+    :return: rewritten query, token usage & cost of the call (None if there was no/failed call)
     """
 
     if not history_messages:
-        return query
+        return query, None
 
     settings = settings or GenerativeModelSettings()
 
@@ -62,10 +63,10 @@ def rewrite_query(
         system_prompt = build_prompt_rewrite(lang=lang)
         messages = build_messages(system_prompt=system_prompt, query=query, history=history_messages)
         model = LF.get_model(provider=settings.provider, name=settings.name, base_url=settings.base_url)
-        rewritten_query = model.chat_completion(messages=messages, temperature=0.0)
+        rewritten_query, usage = model.chat_completion(messages=messages, temperature=0.0)
         logger.debug('User query "%s" rewritten to "%s"', query, rewritten_query)
-        return rewritten_query
+        return rewritten_query, usage
 
     except Exception as e:
         logger.error("Failed to rewrite query: %s", e)
-        return query
+        return query, None
