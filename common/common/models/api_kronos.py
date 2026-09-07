@@ -9,7 +9,7 @@
 from pydantic import Field
 
 from common.models import api_ragnarok as mar, elastic as me
-from common.models.project import AISettings
+from common.models.rag import AISettings
 
 
 class KBMetadata(me.KBMetadata):
@@ -26,8 +26,8 @@ class KBEntry(me.KBEntry):
 
 
 class RAGPayload(mar.RAGPayload):
+    ai_settings: AISettings | None = None
     lang: str | None = None
-    settings: AISettings | None = None
 
 
 class RAGResponse(mar.RAGResponse):

@@ -16,7 +16,7 @@ from langchain_openai import AzureOpenAIEmbeddings, OpenAIEmbeddings
 
 from common.config import CONFIG
 from common.models.enums import ModelProvider, OpenAIType
-from common.models.project import EmbeddingModelSettings
+from common.models.rag import EmbeddingModelSettings
 from common.models.usage import ModelUsage
 from common.services.openai import AZURE_API_VERSION
 from ragnarok.embeddings import EmbeddingFactory

@@ -100,6 +100,7 @@ class ResourceType(str, Enum):
     CHATBOT_HTML = "chatbot_html"
     DIALOGUE_FSM = "dialogue_fsm"
     IMAGE = "image"
+    PROMPTS = "prompts"
 
     SOURCE_DOCUMENT = "document_source"
     SOURCE_KB = "kb_source"
@@ -125,6 +126,7 @@ RESOURCE_TO_MIME = {
     ResourceType.CHATBOT_HTML: "text/html",
     ResourceType.DIALOGUE_FSM: "application/json",
     ResourceType.IMAGE: "application/octet-stream",
+    ResourceType.PROMPTS: "text/markdown",
     ResourceType.SOURCE_DOCUMENT: None,
     ResourceType.SOURCE_KB: None,
 }

@@ -22,6 +22,7 @@ EXC_TO_STATUS = {
     exc.DBRecordAlreadyExists: status.HTTP_409_CONFLICT,
     exc.DBRecordNotFound: status.HTTP_404_NOT_FOUND,
     exc.InvalidModelProvider: status.HTTP_400_BAD_REQUEST,
+    exc.InvalidResourceContent: status.HTTP_422_UNPROCESSABLE_ENTITY,
     exc.ResourceNotFound: status.HTTP_404_NOT_FOUND,
     exc.ResourceNotFoundURL: status.HTTP_404_NOT_FOUND,
     exc.UnsupportedContentType: status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,

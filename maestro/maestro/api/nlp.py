@@ -14,8 +14,8 @@ from fastapi.routing import APIRouter
 
 from common.core import get_component_logger
 from common.models import api_maestro as mam
+from common.services import kronos, ragnarok
 from common.utils.api import error_handler_async
-from maestro.services import kronos, ragnarok
 
 logger = get_component_logger()
 router = APIRouter()

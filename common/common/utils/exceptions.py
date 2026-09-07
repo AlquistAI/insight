@@ -41,6 +41,13 @@ class InvalidModelProvider(CustomException):
         self.detail = f"Invalid model provider: '{provider.value}'"
 
 
+class InvalidResourceContent(CustomException):
+
+    def __init__(self, resource_type: Enum | str, reason: str):
+        rt = resource_type.value if isinstance(resource_type, Enum) else resource_type
+        self.detail = f"Invalid content of the '{rt}' resource file: {reason}"
+
+
 class ResourceNotFound(CustomException):
 
     def __init__(self, resource_id: str):

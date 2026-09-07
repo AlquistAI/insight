@@ -28,8 +28,8 @@ from common.models import api as ma, api_ragnarok as mar
 from common.models.crawling import CrawlOptions
 from common.models.enums import MIME_TO_SOURCE, ResourceType, SOURCE_TO_MIME, SourceType
 from common.models.knowledge_base import KnowledgeBase
+from common.services import alchemist, ragnarok
 from common.utils.api import encode_header_string, error_handler
-from kronos.services import alchemist, ragnarok
 from kronos.services.crawler import Crawler
 from kronos.services.db.mongo import knowledge_base as db_kb, projects as db_projects
 from kronos.services.storage import get_storage

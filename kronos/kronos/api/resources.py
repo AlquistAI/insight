@@ -17,6 +17,7 @@ from common.models.enums import RESOURCE_TO_MIME, ResourceType, SOURCE_TO_MIME, 
 from common.models.fsm import DialogueInit
 from common.utils import exceptions as exc, fsm as u_fsm
 from common.utils.api import error_handler
+from common.utils.prompts import parse_prompts
 from kronos.api import knowledge_base as kb_api
 from kronos.services.db.mongo import projects as db_projects
 from kronos.services.storage import get_storage
@@ -105,6 +106,7 @@ def get_resource(
       - chatbot_html - HTML source for chatbot
       - dialogue_fsm - FSM file specifying the dialogue
       - image - image file used as a static resource
+      - prompts - Markdown file with the LLM prompts used in the project
 
       - document_source - source file for a document (requires project_id and resource_id)
       - kb_source - source file for a knowledge base (requires project_id and resource_id)
@@ -166,6 +168,7 @@ def post_resource(
       - chatbot_html - HTML source for chatbot
       - dialogue_fsm - FSM file specifying the dialogue
       - image - image file used as a static resource
+      - prompts - Markdown file with the LLM prompts used in the project
 
       - document_source - source file for a document (requires project_id and resource_id)
       - kb_source - source file for a knowledge base (requires project_id and resource_id)
@@ -174,6 +177,9 @@ def post_resource(
       - project_id & resource_id passed -> placed in resource-specific location
       - project_id passed -> placed in project-specific location
       - no ID passed -> replaces the default file
+
+    The content of a `prompts` file is validated before it is stored - it has to be parsable and define
+    all the required prompts using exactly the template variables filled in during runtime.
 
     :param file: file to upload
     :param resource_type: type of the resource
@@ -190,8 +196,14 @@ def post_resource(
         source_type=source_type,
     )[0]
 
+    content = file.file.read()
+
+    if resource_type == ResourceType.PROMPTS:
+        # Ensure that the uploaded prompts file can be parsed and defines all the required prompts
+        parse_prompts(content=content)
+
     db_projects.touch_project(project_id=project_id)
-    storage.post_file(file_path=file_path, content=file.file.read())
+    storage.post_file(file_path=file_path, content=content)
     return file_path
 
 
@@ -215,6 +227,7 @@ def delete_resource(
       - chatbot_html - HTML source for chatbot
       - dialogue_fsm - FSM file specifying the dialogue
       - image - image file used as a static resource
+      - prompts - Markdown file with the LLM prompts used in the project
 
       - document_source - source file for a document (requires project_id and resource_id)
       - kb_source - source file for a knowledge base (requires project_id and resource_id)

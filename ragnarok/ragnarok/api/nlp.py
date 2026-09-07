@@ -36,17 +36,17 @@ VS = VectorStore()
     summary="Run RAG pipeline and get response",
 )
 @error_handler
-def rag_pipeline(project_id: str, payload: mar.RAGPayload) -> mar.RAGResponse:
+def rag_pipeline(payload: mar.RAGPayload, project_id: str, session_id: str = "") -> mar.RAGResponse:
     """
     Run RAG pipeline and get response.
 
     Payload parameters:
       - `query`: input user query
       - `context`: list of previous conversation turns
+      - `ai_settings`: AI/NLP functionality settings
       - `ftr_custom`: list of custom ES filter clauses
       - `kb_ids`: knowledge base IDs to include (null/empty for all project documents)
-      - `lang`: content language
-      - `settings`: AI/NLP functionality settings
+      - `lang`: preferred conversation language
       - `return_highlights`: return data for source snippet highlighting
       - `return_matched_chunks`: return matched chunks/documents in the response
 
@@ -58,8 +58,9 @@ def rag_pipeline(project_id: str, payload: mar.RAGPayload) -> mar.RAGResponse:
     values not reported by the model APIs are counted as zero and the `cost_complete` flag is set to
     false if the cost of any call could not be determined.
 
-    :param project_id: project ID
     :param payload: payload with user query and additional settings (see description)
+    :param project_id: project ID
+    :param session_id: session ID (used for caching the project prompts)
     :return: RAG response
     """
 
@@ -67,13 +68,11 @@ def rag_pipeline(project_id: str, payload: mar.RAGPayload) -> mar.RAGResponse:
     usage = UsageTracker()
 
     chunks, text = rag(
-        project_id=project_id,
         query=payload.query,
+        project_id=project_id,
+        session_id=session_id,
         context=payload.context,
-        kb_ids=payload.kb_ids,
-        lang=payload.lang,
-        settings=payload.settings,
-        ftr_custom=payload.ftr_custom,
+        opts=payload,
         usage=usage,
     )
 
@@ -99,17 +98,17 @@ def rag_pipeline(project_id: str, payload: mar.RAGPayload) -> mar.RAGResponse:
     summary="Run RAG pipeline and get streamed response",
 )
 @error_handler
-def rag_pipeline_stream(project_id: str, payload: mar.RAGPayload) -> StreamingResponse:
+def rag_pipeline_stream(payload: mar.RAGPayload, project_id: str, session_id: str = "") -> StreamingResponse:
     """
     Run RAG pipeline and get streamed response.
 
     Payload parameters:
       - `query`: input user query
       - `context`: list of previous conversation turns
+      - `ai_settings`: AI/NLP functionality settings
       - `ftr_custom`: list of custom ES filter clauses
       - `kb_ids`: knowledge base IDs to include (null/empty for all project documents)
-      - `lang`: content language
-      - `settings`: AI/NLP functionality settings
+      - `lang`: preferred conversation language
       - `return_highlights`: return data for source snippet highlighting
       - `return_matched_chunks`: return matched chunks/documents in the response
 
@@ -127,22 +126,21 @@ def rag_pipeline_stream(project_id: str, payload: mar.RAGPayload) -> StreamingRe
       - `text_full`: (str) full version of the streamed text
       - `usage`: (object) token usage & costs of the performed model calls
 
-    :param project_id: project ID
     :param payload: payload with user query and additional settings (see description)
+    :param project_id: project ID
+    :param session_id: session ID (used for caching the project prompts)
     :return: streamed RAG response (see description)
     """
 
     usage = UsageTracker()
+    payload.stream = True
 
     chunks, text_gen = rag(
-        project_id=project_id,
         query=payload.query,
+        project_id=project_id,
+        session_id=session_id,
         context=payload.context,
-        kb_ids=payload.kb_ids,
-        lang=payload.lang,
-        settings=payload.settings,
-        ftr_custom=payload.ftr_custom,
-        stream=True,
+        opts=payload,
         usage=usage,
     )
 
@@ -190,7 +188,7 @@ def _process_matched_chunks(
     chunks = rerank_by_answer(
         matched_chunks=chunks,
         answer=answer,
-        emb_settings=payload.settings.retrieval.model,
+        emb_settings=payload.ai_settings.retrieval.model,
         usage=usage,
     )
 
@@ -248,7 +246,7 @@ def _build_highlight_group_for_hit(
             project_id=project_id,
             source_file=hit.source.metadata.source_file,
             page=hit.source.metadata.page,
-            emb_settings=payload.settings.retrieval.model,
+            emb_settings=payload.ai_settings.retrieval.model,
             query=payload.query,
             k=10,
         )

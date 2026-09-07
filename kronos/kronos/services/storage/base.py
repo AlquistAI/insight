@@ -22,7 +22,11 @@ DIR_KB = f"{DIR_PROJECT}/knowledge_base/{{kb_id}}"
 FN_CHATBOT_HTML = "chatbot.html"
 FN_DIALOGUE_FSM = "dialogue.json"
 FN_IMAGE = "{image_name}"
+FN_PROMPTS = "prompts.md"
 FN_SOURCE = "source.{source_type}"
+
+# Resource types that are project specific with a fallback to a default (project independent) file
+RESOURCES_WITH_DEFAULT = (ResourceType.CHATBOT_HTML, ResourceType.DIALOGUE_FSM, ResourceType.PROMPTS)
 
 
 def get_resource_fn(
@@ -44,6 +48,8 @@ def get_resource_fn(
             return FN_DIALOGUE_FSM
         case ResourceType.IMAGE:
             return FN_IMAGE.format(image_name=resource_id)
+        case ResourceType.PROMPTS:
+            return FN_PROMPTS
 
         case ResourceType.SOURCE_DOCUMENT:
             return FN_SOURCE.format(source_type=source_type.value)
@@ -70,6 +76,8 @@ def get_resource_dir(
             return DIR_PROJECT.format(project_id=project_id) if project_id else None
         case ResourceType.IMAGE:
             return DIR_IMAGES
+        case ResourceType.PROMPTS:
+            return DIR_PROJECT.format(project_id=project_id) if project_id else None
 
         case ResourceType.SOURCE_DOCUMENT:
             return DIR_DOCUMENTS.format(project_id=project_id, document_id=resource_id)
@@ -99,7 +107,7 @@ def get_resource_paths(
     r_fn = get_resource_fn(resource_type=resource_type, resource_id=resource_id, source_type=source_type)
 
     paths = [f"{r_dir}/{r_fn}"] if r_dir else []
-    if resource_type in (ResourceType.CHATBOT_HTML, ResourceType.DIALOGUE_FSM):
+    if resource_type in RESOURCES_WITH_DEFAULT:
         paths.append(f"{CONFIG.STORAGE_PREFIX}/{r_fn}".lstrip("/"))
 
     return paths

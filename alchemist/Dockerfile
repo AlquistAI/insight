@@ -9,9 +9,8 @@ WORKDIR /root
 RUN pip install pipenv setuptools wheel
 
 # Install Python dependencies
-COPY common common
-COPY alchemist/Pipfile alchemist/Pipfile.lock alchemist/
-RUN cd alchemist && pipenv install --deploy --system
+COPY alchemist/Pipfile alchemist/Pipfile.lock deps/
+RUN cd deps && pipenv install --deploy --system
 
 # Fix Docling's OpenCV dependency
 RUN pip uninstall -y opencv-python opencv-python-headless && pip install opencv-python-headless
@@ -42,6 +41,7 @@ WORKDIR $USER_HOME
 ENV PYTHONPATH=$USER_HOME
 
 # Copy runtime files
+COPY --chown=999:999 common/common ./common
 COPY --chown=999:999 alchemist ./
 RUN chmod +x start.sh
 

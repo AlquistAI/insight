@@ -9,9 +9,8 @@ WORKDIR /root
 RUN pip install pipenv setuptools wheel
 
 # Install Python dependencies
-COPY common common
-COPY maestro/Pipfile maestro/Pipfile.lock maestro/
-RUN cd maestro && pipenv install --deploy --system
+COPY maestro/Pipfile maestro/Pipfile.lock deps/
+RUN cd deps && pipenv install --deploy --system
 
 FROM python:3.11-slim-bookworm AS runtime
 
@@ -39,6 +38,7 @@ WORKDIR $USER_HOME
 ENV PYTHONPATH=$USER_HOME
 
 # Copy runtime files
+COPY --chown=999:999 common/common ./common
 COPY --chown=999:999 maestro ./
 RUN chmod +x start.sh
 

@@ -26,7 +26,7 @@ from common.core import get_component_logger
 from common.core.logger_utils import log_elapsed_time
 from common.models import elastic as me
 from common.models.enums import SourceType
-from common.models.project import EmbeddingModelSettings, RetrievalSettings
+from common.models.rag import EmbeddingModelSettings, RetrievalSettings
 from common.models.usage import ModelUsage
 from common.utils import exceptions as exc
 from common.utils.misc import dict_to_dot_keys, generate_batches

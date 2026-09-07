@@ -6,15 +6,13 @@
     Models used as payloads/responses in Ragnarok APIs.
 """
 
-from datetime import datetime
 from typing import Any
 
 from pydantic import Field
 
-from common.config import DF
 from common.models import elastic as me
 from common.models.base import CustomBaseModel
-from common.models.project import AISettings
+from common.models.rag import ConversationTurn, RAGOptions
 from common.models.usage import UsageSummary
 
 
@@ -31,20 +29,9 @@ class KBMetadataUpdate(CustomBaseModel):
 ## NLP ##
 #########
 
-class ConversationTurn(CustomBaseModel):
-    user_query: str
-    system_response: str
-    created_at: datetime
-
-
-class RAGPayload(CustomBaseModel):
+class RAGPayload(RAGOptions):
     query: str
     context: list[ConversationTurn] = Field(default_factory=list)
-
-    ftr_custom: list[dict[str, Any]] | None = None
-    kb_ids: list[str] | None = None
-    lang: str = DF.LANG
-    settings: AISettings = Field(default_factory=AISettings)
 
     return_highlights: bool = False
     return_matched_chunks: bool = True

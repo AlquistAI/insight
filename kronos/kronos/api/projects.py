@@ -12,8 +12,8 @@ from fastapi.routing import APIRouter
 
 from common.models import api as ma
 from common.models.project import Project
+from common.services import ragnarok
 from common.utils.api import error_handler
-from kronos.services import ragnarok
 from kronos.services.db.mongo import (
     knowledge_base as db_kb,
     projects as db_projects,

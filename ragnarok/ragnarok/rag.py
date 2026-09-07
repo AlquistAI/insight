@@ -7,18 +7,18 @@
 """
 
 from collections import defaultdict
-from typing import Any, Generator
+from typing import Generator
 
 import numpy as np
 
 from common.config import DF
 from common.models import elastic as me
-from common.models.api_ragnarok import ConversationTurn
 from common.models.enums import RAGStep
-from common.models.project import AISettings, EmbeddingModelSettings
+from common.models.rag import AISettings, ConversationTurn, EmbeddingModelSettings, RAGOptions
 from common.models.usage import ModelUsage
+from common.services import kronos
 from common.utils.misc import yield_from_with_return
-from common.utils.prompts import build_messages, build_prompt_general
+from common.utils.prompts import build_messages, build_prompt_rag
 from common.utils.usage import UsageTracker
 from ragnarok.generation import LLMFactory
 from ragnarok.rerank import RerankFactory
@@ -32,14 +32,11 @@ VS = VectorStore()
 
 
 def rag(
-        project_id: str,
         query: str,
+        project_id: str,
+        session_id: str = "",
         context: list[ConversationTurn] | None = None,
-        kb_ids: list[str] | None = None,
-        lang: str = DF.LANG,
-        settings: AISettings | None = None,
-        ftr_custom: list[dict[str, Any]] | None = None,
-        stream: bool = False,
+        opts: RAGOptions | None = None,
         usage: UsageTracker | None = None,
 ) -> tuple[list[me.KBEntry], str | Generator[str, None, ModelUsage | None] | None]:
     """
@@ -49,29 +46,30 @@ def rag(
     In the streaming mode, the usage of the generation call is only known once the returned generator
     is exhausted - it is added to the tracker automatically as its last step.
 
-    :param project_id: project ID
     :param query: user query
+    :param project_id: project ID
+    :param session_id: session ID (used for caching the project prompts)
     :param context: list of previous conversation turns
-    :param kb_ids: knowledge base IDs to include (None for all project documents)
-    :param lang: content language
-    :param settings: AI/NLP functionality settings
-    :param ftr_custom: custom filters for getting KNN matches from VectorStore
-    :param stream: stream the LLM response (return generator)
+    :param opts: options for RAG pipeline
     :param usage: tracker collecting the token usage & costs of the model calls
     :return: matched documents (chunks), response text / text chunk generator
     """
 
-    settings = settings or AISettings()
+    opts = opts or RAGOptions()
     usage = usage or UsageTracker()
-    return_vectors = settings.generation.enabled
+    return_vectors = opts.ai_settings.generation.enabled
+
+    # prompts (project-specific file with a fallback to the default one, fetched from Kronos)
+    prompts = kronos.get_prompts(project_id=project_id, session_id=session_id)
 
     # query rewrite
     history_messages = process_context(context or [])
     rewritten_query, usage_rewrite = rewrite_query(
         query=query,
         history_messages=history_messages,
-        lang=lang,
-        settings=settings.generation.model,
+        prompt=prompts.query_rewrite,
+        lang=opts.lang,
+        settings=opts.ai_settings.generation.model,
     )
 
     usage.add(usage_rewrite, step=RAGStep.QUERY_REWRITE)
@@ -80,9 +78,9 @@ def rag(
     hits_cosine, usage_emb = VS.knn_search(
         query=rewritten_query,
         project_id=project_id,
-        kb_ids=kb_ids,
-        settings=settings.retrieval,
-        ftr_custom=ftr_custom,
+        kb_ids=opts.kb_ids,
+        settings=opts.ai_settings.retrieval,
+        ftr_custom=opts.ftr_custom,
         return_vectors=return_vectors,
     )
 
@@ -92,9 +90,9 @@ def rag(
     hits_bm25 = VS.bm25_search(
         query=rewritten_query,
         project_id=project_id,
-        kb_ids=kb_ids,
-        settings=settings.retrieval,
-        ftr_custom=ftr_custom,
+        kb_ids=opts.kb_ids,
+        settings=opts.ai_settings.retrieval,
+        ftr_custom=opts.ftr_custom,
         return_vectors=return_vectors,
     )
 
@@ -102,7 +100,7 @@ def rag(
     documents = [hit.source.text for hit in hits]
 
     # reranking
-    if (sr := settings.reranking).enabled:
+    if (sr := opts.ai_settings.reranking).enabled:
         reranker = RF.get_model(provider=sr.model.provider, name=sr.model.name)
         ids, usage_rerank = reranker.rerank(query=rewritten_query, documents=documents, k=sr.k)
         hits = [hits[idx] for idx in ids]
@@ -110,12 +108,12 @@ def rag(
         usage.add(usage_rerank, step=RAGStep.RERANKING)
 
     # generation
-    if (sg := settings.generation).enabled:
+    if (sg := opts.ai_settings.generation).enabled:
         model = LF.get_model(provider=sg.model.provider, name=sg.model.name, base_url=sg.model.base_url)
-        system_prompt = build_prompt_general(kb_documents=documents, lang=lang)
+        system_prompt = build_prompt_rag(prompt=prompts.rag, kb_documents=documents, lang=opts.lang)
         messages = build_messages(system_prompt=system_prompt, query=query, history=history_messages)
 
-        if stream:
+        if opts.stream:
             gen_res = yield_from_with_return(
                 gen=model.chat_completion_stream(messages=messages, temperature=sg.temperature),
                 on_return=lambda u: usage.add(u, step=RAGStep.GENERATION),

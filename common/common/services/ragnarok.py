@@ -1,20 +1,21 @@
 # -*- coding: utf-8 -*-
 """
-    kronos.services.ragnarok
+    common.services.ragnarok
     ~~~~~~~~~~~~~~~~~~~~~~~~
 
     Ragnarok service utilities.
 """
 
-from typing import BinaryIO, Generator
+from typing import Any, BinaryIO, Generator
 
 import httpx
 import requests
 
 from common.config import CONFIG, DF
 from common.models import api as ma, api_ragnarok as mar, elastic as me
+from common.models.api_maestro import QueryPayload
 from common.models.enums import SourceType
-from common.models.project import EmbeddingModelSettings
+from common.models.rag import EmbeddingModelSettings
 
 RAGNAROK_URL = str(CONFIG.RAGNAROK_URL).rstrip("/")
 
@@ -22,6 +23,11 @@ HEADERS = {
     "accept": "application/json",
     "Authorization": CONFIG.RAGNAROK_API_KEY.get_secret_value(),
 }
+
+
+# ---------------------------------------------------------------------------
+# Knowledge base & projects
+# ---------------------------------------------------------------------------
 
 
 def upload_file_kb(
@@ -127,18 +133,25 @@ def delete_project(project_id: str) -> ma.DeletedCount:
     return ma.DeletedCount.model_validate(res.json())
 
 
-async def query_rag(project_id: str, payload: mar.RAGPayload) -> mar.RAGResponse:
+# ---------------------------------------------------------------------------
+# NLP / RAG
+# ---------------------------------------------------------------------------
+
+
+async def query_rag(payload: mar.RAGPayload, project_id: str, session_id: str = "") -> mar.RAGResponse:
     """
     Get RAG response from Ragnarok.
 
-    :param project_id: project ID
     :param payload: RAG payload
+    :param project_id: project ID
+    :param session_id: session ID (used for caching the project prompts)
     :return: RAG response dict
     """
 
     async with httpx.AsyncClient() as client:
         res = await client.post(
             url=f"{RAGNAROK_URL}/projects/{project_id}/nlp/rag/",
+            params={"session_id": session_id},
             json=payload.model_dump(mode="json"),
             headers=HEADERS,
             timeout=httpx.Timeout(60, connect=5),
@@ -148,12 +161,13 @@ async def query_rag(project_id: str, payload: mar.RAGPayload) -> mar.RAGResponse
     return mar.RAGResponse.model_validate(res.json())
 
 
-def query_rag_stream(project_id: str, payload: mar.RAGPayload) -> Generator[str, None, None]:
+def query_rag_stream(payload: mar.RAGPayload, project_id: str, session_id: str = "") -> Generator[str, None, None]:
     """
     Get streamed RAG response from Ragnarok.
 
-    :param project_id: project ID
     :param payload: RAG payload
+    :param project_id: project ID
+    :param session_id: session ID (used for caching the project prompts)
     :return: streamed RAG response
     """
 
@@ -162,6 +176,7 @@ def query_rag_stream(project_id: str, payload: mar.RAGPayload) -> Generator[str,
 
     res = requests.post(
         url=f"{RAGNAROK_URL}/projects/{project_id}/nlp/rag/stream",
+        params={"session_id": session_id},
         json=payload.model_dump(mode="json"),
         headers=headers,
         timeout=(5, 60),
@@ -172,3 +187,25 @@ def query_rag_stream(project_id: str, payload: mar.RAGPayload) -> Generator[str,
 
     for line in res.iter_lines():
         yield line.decode()
+
+
+async def get_highlights(project_id: str, payload: QueryPayload, hit: dict[str, Any]) -> dict[str, Any]:
+    """
+    Fetch highlight group (L0 + L1) for a single matched hit.
+
+    :param project_id: project ID
+    :param payload: original RAG payload
+    :param hit: matched KB entry
+    :return: highlight group data
+    """
+
+    async with httpx.AsyncClient() as client:
+        res = await client.post(
+            url=f"{RAGNAROK_URL}/projects/{project_id}/nlp/rag/highlights",
+            json={"payload": payload.model_dump(), "hit": hit},
+            headers=HEADERS,
+            timeout=httpx.Timeout(10, connect=5),
+        )
+
+    res.raise_for_status()
+    return res.json()

@@ -11,33 +11,43 @@ verify_ssl = true
 python_version = "3.11"
 
 [packages]
+## Common module dependencies ##
+bson = "==0.5.10"
+cachetools = "==7.0.1"
+fastapi = "==0.131.0"
+httpx = "==0.28.1"
+psutil = "==7.2.2"
+pydantic = "==2.12.5"
+pydantic-settings = "==2.14.2"
+python-dateutil = "==2.9.0.post0"
+python-multipart = "==0.0.22"
+requests = "==2.32.5"
+starlette = "==0.52.1"
+
+## Common module dependencies (optional) ##
+dnspython = "==2.8.0"
+elasticsearch = "==8.17.2"
+openai = "==2.21.0"
+pyjwt = { extras = ["crypto"], version = "==2.13.0" }
+pymongo = "==4.16.0"
+
+## Component dependencies ##
 azure-identity = "==1.25.2"
 azure-storage-blob = "==12.28.0"
 beautifulsoup4 = "==4.14.3"
-cachetools = "==7.0.1"
-common = { editable = true, extras = ["es", "jwt", "mongo", "openai"], path = "common" }
 docling = "==2.111.0"
-elasticsearch = "==8.17.2"
-fastapi = "==0.131.0"
 gevent = "==25.9.1"
-httpx = "==0.28.1"
 langchain = "==1.2.10"
 langchain-community = "==0.4.1"
 langchain-openai = "==1.1.10"
 langchain-text-splitters = "==1.1.1"
 minio = "==7.2.20"
 numpy = "==2.4.2"
-openai = "==2.21.0"
 openpyxl = "==3.1.5"
-pydantic = "==2.12.5"
-pymongo = "==4.16.0"
 pymupdf = "==1.27.1"
 pypdfium2 = "==5.11.0"
-python-dateutil = "==2.9.0.post0"
 python-docx = "==1.2.0"
-python-multipart = "==0.0.22"
 python-pptx = "==1.0.2"
-requests = "==2.32.5"
 tritonclient = { extras = ["http"], version = "==2.65.0" }
 uvicorn = { extras = ["standard"], version = "==0.41.0" }
 
@@ -50,4 +60,5 @@ tqdm = "==4.67.3"
 transformers = "==5.2.0"
 
 [pipenv]
-sort_pipfile = true
+# Keep disabled to preserve the visual separation of the common & component dependencies.
+sort_pipfile = false

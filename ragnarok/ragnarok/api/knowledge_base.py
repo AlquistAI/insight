@@ -17,7 +17,7 @@ from fastapi.routing import APIRouter
 from common.config import DF
 from common.models import api as ma, api_ragnarok as mar, elastic as me
 from common.models.enums import ModelProvider, SourceType
-from common.models.project import EmbeddingModelSettings
+from common.models.rag import EmbeddingModelSettings
 from common.utils.api import error_handler
 from ragnarok.vector_db import VectorStore
 

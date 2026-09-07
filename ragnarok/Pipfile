@@ -7,27 +7,36 @@ verify_ssl = true
 python_version = "3.11"
 
 [packages]
-beautifulsoup4 = "==4.14.3"
+## Common module dependencies ##
+bson = "==0.5.10"
 cachetools = "==7.0.1"
-common = { extras = ["es", "openai"], path = "../common" }
-elasticsearch = "==8.17.2"
 fastapi = "==0.131.0"
+httpx = "==0.28.1"
+psutil = "==7.2.2"
+pydantic = "==2.12.5"
+pydantic-settings = "==2.14.2"
+python-dateutil = "==2.9.0.post0"
+python-multipart = "==0.0.22"
+requests = "==2.32.5"
+starlette = "==0.52.1"
+
+## Common module dependencies (optional) ##
+elasticsearch = "==8.17.2"
+openai = "==2.21.0"
+
+## Component dependencies ##
+beautifulsoup4 = "==4.14.3"
 gevent = "==25.9.1"
 langchain = "==1.2.10"
 langchain-community = "==0.4.1"
 langchain-openai = "==1.1.10"
 langchain-text-splitters = "==1.1.1"
 numpy = "==2.4.2"
-openai = "==2.21.0"
 openpyxl = "==3.1.5"
-pydantic = "==2.12.5"
 pymupdf = "==1.27.1"
 pypdfium2 = "==5.11.0"
-python-dateutil = "==2.9.0.post0"
 python-docx = "==1.2.0"
-python-multipart = "==0.0.22"
 python-pptx = "==1.0.2"
-requests = "==2.32.5"
 tritonclient = { extras = ["http"], version = "==2.65.0" }
 uvicorn = { extras = ["standard"], version = "==0.41.0" }
 
@@ -39,4 +48,5 @@ torch = "==2.10.0"
 transformers = "==5.2.0"
 
 [pipenv]
-sort_pipfile = true
+# Keep disabled to preserve the visual separation of the common & component dependencies.
+sort_pipfile = false

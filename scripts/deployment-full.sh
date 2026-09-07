@@ -2,8 +2,6 @@
 set -euo pipefail
 
 ### CONFIGURATION ###
-APPS=("alchemist" "kronos" "maestro" "ragnarok")
-
 echo "==== Reading server config ===="
 touch config.local.env
 source config.env
@@ -53,25 +51,16 @@ else
   DOCKER="sudo docker"
 fi
 
-### BUILD DOCKER IMAGES ###
-# ToDo: Build the images directly through docker-compose.
-echo "==== Building Docker images ===="
-
-for APP in "${APPS[@]}"; do
-  echo "Building $APP..."
-  $DOCKER build -f "$APP/Dockerfile" -t "$APP:latest" .
-done
-
 ### START DOCKER COMPOSE ###
 echo "==== Preparing directories required for docker compose ===="
 mkdir -p data/{alchemist/{docling,huggingface},elasticsearch,keycloak,maestro/frontend,ragnarok/models}
 sudo chown -R 1000:1000 data/{elasticsearch,keycloak}
 sudo chown -R 999:999 data/{alchemist,maestro,ragnarok}
 
-echo "==== Starting docker compose ===="
+echo "==== Building the app images and starting docker compose ===="
 echo "The vllm-generation container waits for the vllm-embedding container to be ready before it starts."
 echo "This can take some time as the vLLM containers need to download/load the models. Please be patient."
-$DOCKER compose up -d
+$DOCKER compose up -d --build
 
 ### WAIT FOR BACKEND SERVICES ###
 echo "==== Waiting for backend services to become ready ===="
@@ -86,8 +75,8 @@ until curl -fs "$RAGNAROK_URL/health" > /dev/null; do
   sleep 5
 done
 
-### UPLOAD DEFAULT DIALOGUE/IMAGE FILES IF MISSING ###
-echo "==== Uploading default dialogue/image files ===="
+### UPLOAD DEFAULT RESOURCE FILES IF MISSING ###
+echo "==== Uploading default dialogue/image/prompts files ===="
 
 if curl -fs "$KRONOS_URL/resources/dialogue_fsm/" -H "X-Api-Key: $KRONOS_API_KEY" > /dev/null; then
   echo "Default dialogue FSM file already exists. Skipping."
@@ -108,9 +97,21 @@ else
     "$KRONOS_URL/resources/image/?resource_id=digital_theme.png" \
     -H "X-Api-Key: $KRONOS_API_KEY" \
     -H "Content-Type: multipart/form-data" \
-    -F "file=@fsm/digital_theme.png;type=image/png"
+    -F "file=@resources/digital_theme.png;type=image/png"
 
   echo -e "\nDefault image file created."
+fi
+
+if curl -fs "$KRONOS_URL/resources/prompts/" -H "X-Api-Key: $KRONOS_API_KEY" > /dev/null; then
+  echo "Default prompts file already exists. Skipping."
+else
+  curl -X "POST" \
+    "$KRONOS_URL/resources/prompts/" \
+    -H "X-Api-Key: $KRONOS_API_KEY" \
+    -H "Content-Type: multipart/form-data" \
+    -F "file=@resources/prompts.md;type=text/markdown"
+
+  echo -e "\nDefault prompts file created."
 fi
 
 ### CREATE EXAMPLE PROJECT IF MISSING ###

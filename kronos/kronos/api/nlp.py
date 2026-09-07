@@ -14,9 +14,10 @@ from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRouter
 
 from common.config import CONFIG
-from common.models import api_kronos as mak, api_ragnarok as mar, elastic as me
+from common.models import api_kronos as mak, elastic as me
+from common.models.rag import ConversationTurn
+from common.services import ragnarok
 from common.utils.api import error_handler, error_handler_async
-from kronos.services import ragnarok
 from kronos.services.db.mongo.knowledge_base import get_kb_bulk
 from kronos.services.db.mongo.projects import get_project_cached
 from kronos.services.db.mongo.turns import list_turns
@@ -31,17 +32,17 @@ router = APIRouter()
     summary="Run RAG pipeline and get response",
 )
 @error_handler_async
-async def rag_pipeline(project_id: str, payload: mak.RAGPayload, session_id: str = "") -> mak.RAGResponse:
+async def rag_pipeline(payload: mak.RAGPayload, project_id: str, session_id: str = "") -> mak.RAGResponse:
     """
     Run RAG pipeline and get response.
 
     Payload parameters:
       - `query`: input user query
       - `context`: list of previous conversation turns (fetched automatically by session ID if not provided)
+      - `ai_settings`: AI/NLP functionality settings (uses project AI settings if None)
       - `ftr_custom`: list of custom ES filter clauses
       - `kb_ids`: knowledge base IDs to include (null/empty for all project documents)
-      - `lang`: content language (uses project language if None)
-      - `settings`: AI/NLP functionality settings (uses project AI settings if None)
+      - `lang`: preferred conversation language (uses project language if None)
       - `return_highlights`: return data for source snippet highlighting
       - `return_matched_chunks`: return matched chunks/documents in the response
 
@@ -51,8 +52,8 @@ async def rag_pipeline(project_id: str, payload: mak.RAGPayload, session_id: str
     The `usage` attribute of the response contains the aggregated token usage and costs (in USD) of
     all the model calls performed during the pipeline run, together with the individual calls.
 
-    :param project_id: project ID
     :param payload: payload with user query and additional settings (see description)
+    :param project_id: project ID
     :param session_id: session ID (for fetching conversation history)
     :return: RAG response
     """
@@ -68,9 +69,9 @@ async def rag_pipeline(project_id: str, payload: mak.RAGPayload, session_id: str
             per_page=CONFIG.CONTEXT_WINDOW_SIZE,
         )
 
-        payload.context = [mar.ConversationTurn.model_validate(t) for t in turns]
+        payload.context = [ConversationTurn.model_validate(t) for t in turns]
 
-    res = await ragnarok.query_rag(project_id=project_id, payload=payload)
+    res = await ragnarok.query_rag(payload=payload, project_id=project_id, session_id=session_id)
 
     return mak.RAGResponse(
         generated_text=res.generated_text,
@@ -87,17 +88,17 @@ async def rag_pipeline(project_id: str, payload: mak.RAGPayload, session_id: str
     summary="Run RAG pipeline and get streamed response",
 )
 @error_handler
-def rag_pipeline_stream(project_id: str, payload: mak.RAGPayload, session_id: str = "") -> StreamingResponse:
+def rag_pipeline_stream(payload: mak.RAGPayload, project_id: str, session_id: str = "") -> StreamingResponse:
     """
     Run RAG pipeline and get streamed response.
 
     Payload parameters:
       - `query`: input user query
       - `context`: list of previous conversation turns (fetched automatically by session ID if not provided)
+      - `ai_settings`: AI/NLP functionality settings (uses project AI settings if None)
       - `ftr_custom`: list of custom ES filter clauses
       - `kb_ids`: knowledge base IDs to include (null/empty for all project documents)
-      - `lang`: content language (uses project language if None)
-      - `settings`: AI/NLP functionality settings (uses project AI settings if None)
+      - `lang`: preferred conversation language (uses project language if None)
       - `return_highlights`: return data for source snippet highlighting
       - `return_matched_chunks`: return matched chunks/documents in the response
 
@@ -115,8 +116,8 @@ def rag_pipeline_stream(project_id: str, payload: mak.RAGPayload, session_id: st
       - `text_full`: (str) full version of the streamed text
       - `usage`: (object) token usage & costs of the performed model calls
 
-    :param project_id: project ID
     :param payload: payload with user query and additional settings (see description)
+    :param project_id: project ID
     :param session_id: session ID (for fetching conversation history)
     :return: streamed RAG response (see description)
     """
@@ -132,9 +133,9 @@ def rag_pipeline_stream(project_id: str, payload: mak.RAGPayload, session_id: st
             per_page=CONFIG.CONTEXT_WINDOW_SIZE,
         )
 
-        payload.context = [mar.ConversationTurn.model_validate(t) for t in turns]
+        payload.context = [ConversationTurn.model_validate(t) for t in turns]
 
-    res = ragnarok.query_rag_stream(project_id=project_id, payload=payload)
+    res = ragnarok.query_rag_stream(payload=payload, project_id=project_id, session_id=session_id)
     return StreamingResponse(_streamed_rag_response(text_gen=res), media_type="application/x-ndjson")
 
 
@@ -146,8 +147,8 @@ def _fill_default_settings(project_id: str, payload: mak.RAGPayload):
     if not payload.lang:
         payload.lang = project.language
 
-    if not payload.settings:
-        payload.settings = project.ai_settings
+    if not payload.ai_settings:
+        payload.ai_settings = project.ai_settings
 
 
 def _update_matched_chunks(

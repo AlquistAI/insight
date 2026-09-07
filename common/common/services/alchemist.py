@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-    kronos.services.alchemist
+    common.services.alchemist
     ~~~~~~~~~~~~~~~~~~~~~~~~~
 
     Alchemist service utilities.

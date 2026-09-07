@@ -8,8 +8,7 @@
 
 from common.config import DF
 from common.core import get_component_logger
-from common.models.api_ragnarok import ConversationTurn
-from common.models.project import GenerativeModelSettings
+from common.models.rag import ConversationTurn, GenerativeModelSettings
 from common.models.usage import ModelUsage
 from common.utils.prompts import build_messages, build_prompt_rewrite
 from ragnarok.generation import LLMFactory
@@ -41,6 +40,7 @@ def process_context(context: list[ConversationTurn]) -> list[dict[str, str]]:
 def rewrite_query(
         query: str,
         history_messages: list[dict[str, str]],
+        prompt: str,
         lang: str = DF.LANG,
         settings: GenerativeModelSettings | None = None,
 ) -> tuple[str, ModelUsage | None]:
@@ -49,6 +49,7 @@ def rewrite_query(
 
     :param query: input user query
     :param history_messages: list of context messages
+    :param prompt: query rewrite prompt template
     :param lang: conversation language
     :param settings: LLM settings
     :return: rewritten query, token usage & cost of the call (None if there was no/failed call)
@@ -60,7 +61,7 @@ def rewrite_query(
     settings = settings or GenerativeModelSettings()
 
     try:
-        system_prompt = build_prompt_rewrite(lang=lang)
+        system_prompt = build_prompt_rewrite(prompt=prompt, lang=lang)
         messages = build_messages(system_prompt=system_prompt, query=query, history=history_messages)
         model = LF.get_model(provider=settings.provider, name=settings.name, base_url=settings.base_url)
         rewritten_query, usage = model.chat_completion(messages=messages, temperature=0.0)

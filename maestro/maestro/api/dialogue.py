@@ -17,8 +17,8 @@ from common.core import get_component_logger
 from common.models import api_maestro as mam
 from common.models.enums import ResourceType
 from common.models.fsm import Dialogue, State
+from common.services import kronos
 from common.utils.api import error_handler, error_handler_async
-from maestro.services import kronos
 
 logger = get_component_logger()
 router = APIRouter()
@@ -49,7 +49,6 @@ async def start_session(
     :return: created session data
     """
 
-    # fsm = json.load(open("fsm/mf-ai.json"))     # for local testing
     fsm, _ = await kronos.get_resource(resource_type=ResourceType.DIALOGUE_FSM, project_id=project_id, as_json=True)
     dialogue = Dialogue.model_validate(fsm)
     logger.debug("Dialogue instance created: %s", dialogue)
@@ -100,7 +99,6 @@ async def get_state(
     :return: state data
     """
 
-    # fsm = json.load(open("fsm/mf-ai.json"))     # for local testing
     fsm, _ = await kronos.get_resource(resource_type=ResourceType.DIALOGUE_FSM, project_id=project_id, as_json=True)
     dialogue = Dialogue.model_validate(fsm)
     logger.debug("Dialogue instance created: %s", dialogue)

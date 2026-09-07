@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    maestro.services.kronos
-    ~~~~~~~~~~~~~~~~~~~~~~~
+    common.services.kronos
+    ~~~~~~~~~~~~~~~~~~~~~~
 
     Kronos service utilities.
 """
@@ -10,6 +10,8 @@ import json
 from typing import Any, AsyncGenerator
 
 import httpx
+import requests
+from cachetools.func import ttl_cache
 from fastapi import status
 from fastapi.exceptions import HTTPException
 
@@ -17,6 +19,8 @@ from common.config import CONFIG
 from common.core import get_component_logger
 from common.models.enums import ResourceType, SourceType
 from common.models.project import Project
+from common.models.prompts import Prompts
+from common.utils.prompts import parse_prompts
 
 logger = get_component_logger()
 
@@ -26,6 +30,17 @@ HEADERS = {
     "accept": "application/json",
     "X-Api-Key": CONFIG.KRONOS_API_KEY.get_secret_value(),
 }
+
+# Used for the endpoints returning raw file content (resources)
+HEADERS_FILE = HEADERS | {"accept": "*/*"}
+
+PROMPTS_CACHE_SIZE = 1024
+PROMPTS_CACHE_TTL = 3600
+
+
+# ---------------------------------------------------------------------------
+# Projects & knowledge base
+# ---------------------------------------------------------------------------
 
 
 async def get_project(project_id: str) -> Project:
@@ -76,6 +91,11 @@ async def get_kb(project_id: str) -> list[dict[str, Any]]:
     return data
 
 
+# ---------------------------------------------------------------------------
+# Resources
+# ---------------------------------------------------------------------------
+
+
 async def get_resource(
         resource_type: ResourceType,
         resource_id: str = "",
@@ -103,14 +123,11 @@ async def get_resource(
     # It is impossible to send None as a query param, we need to use default values
     params = {k: v for k, v in params.items() if v}
 
-    headers = HEADERS.copy()
-    headers["accept"] = "*/*"
-
     async with httpx.AsyncClient() as client:
         res = await client.get(
             url=f"{KRONOS_URL}/resources/{resource_type.value}/",
             params=params,
-            headers=HEADERS,
+            headers=HEADERS_FILE,
             timeout=httpx.Timeout(30, connect=5),
         )
 
@@ -120,6 +137,35 @@ async def get_resource(
     if as_json and resource_type == ResourceType.DIALOGUE_FSM:
         return res.json(), content_type
     return res.content, content_type
+
+
+@ttl_cache(maxsize=PROMPTS_CACHE_SIZE, ttl=PROMPTS_CACHE_TTL)
+def get_prompts(project_id: str, session_id: str = "") -> Prompts:  # noqa
+    """
+    Get the LLM prompts of a project from Kronos (cached by project & session ID for an hour).
+
+    Kronos returns the project-specific "prompts.md" resource file if the project has one,
+    the default (project independent) prompts file otherwise.
+
+    :param project_id: project ID
+    :param session_id: session ID (used only as a part of the cache key)
+    :return: parsed project prompts
+    """
+
+    res = requests.get(
+        url=f"{KRONOS_URL}/resources/{ResourceType.PROMPTS.value}/",
+        params={"project_id": project_id},
+        headers=HEADERS_FILE,
+        timeout=(5, 10),
+    )
+
+    res.raise_for_status()
+    return parse_prompts(content=res.content)
+
+
+# ---------------------------------------------------------------------------
+# NLP / RAG
+# ---------------------------------------------------------------------------
 
 
 def query_rag(
@@ -267,6 +313,11 @@ async def query_rag_top_n(
     )
 
     return res
+
+
+# ---------------------------------------------------------------------------
+# Sessions & turns
+# ---------------------------------------------------------------------------
 
 
 async def create_session(
