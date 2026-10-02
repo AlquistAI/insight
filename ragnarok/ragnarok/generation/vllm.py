@@ -11,8 +11,8 @@ from typing import Generator
 from openai import OpenAI
 
 from common.config import DF
-from common.core.logger_utils import log_elapsed_time
-from common.models.enums import ModelProvider
+from common.core.logger_utils import log_elapsed_time, log_elapsed_time_stream
+from common.models.enums import ModelProvider, ReasoningEffort
 from common.models.usage import ModelUsage
 from ragnarok.generation.base import LLMBase
 
@@ -22,6 +22,8 @@ class NvidiaVLLM(LLMBase):
     def __init__(self, model_name: str = "Qwen/Qwen3-30B-A3B", base_url: str | None = None):
         self.client = OpenAI(api_key="vllm", base_url=base_url)
 
+        # ToDo: Map the requested reasoning effort onto the `enable_thinking` flag of the models supporting it
+        #  (the self-hosted models only support thinking on/off, not the effort levels of the OpenAI API).
         if model_name == "Qwen/Qwen3-30B-A3B":
             self.extra_body = {"chat_template_kwargs": {"enable_thinking": False}}
         else:
@@ -38,6 +40,7 @@ class NvidiaVLLM(LLMBase):
             self,
             messages: list[dict[str, str]],
             temperature: float = DF.TEMPERATURE,
+            reasoning_effort: ReasoningEffort | None = None,
     ) -> tuple[str, ModelUsage | None]:
         # noinspection PyTypeChecker
         completion = self.client.chat.completions.create(
@@ -50,10 +53,12 @@ class NvidiaVLLM(LLMBase):
 
         return completion.choices[0].message.content, self._build_usage(completion.usage)
 
+    @log_elapsed_time_stream
     def chat_completion_stream(
             self,
             messages: list[dict[str, str]],
             temperature: float = DF.TEMPERATURE,
+            reasoning_effort: ReasoningEffort | None = None,
     ) -> Generator[str, None, ModelUsage | None]:
         # noinspection PyTypeChecker
         completion = self.client.chat.completions.create(

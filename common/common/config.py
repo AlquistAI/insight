@@ -13,7 +13,7 @@ from pathlib import Path
 from pydantic import AnyUrl, Field, SecretStr, ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from common.models.enums import ClientName, LogFormat, ModelProvider, OpenAIType, StorageType
+from common.models.enums import ClientName, LogFormat, ModelProvider, OpenAIType, ReasoningEffort, StorageType
 from common.models.validation import Language
 
 DIR_ROOT = Path(__file__).parent.parent.parent
@@ -26,6 +26,14 @@ class Defaults(BaseSettings):
     # Project/content language
     LANG: Language = "cs-CZ"
 
+    ###################
+    ## QUERY REWRITE ##
+    ###################
+
+    # LLM call settings (query rewrite uses the model of the generation step by default)
+    REASONING_EFFORT_REWRITE: ReasoningEffort = ReasoningEffort.LOW
+    TEMPERATURE_REWRITE: float = 0.0
+
     ###############
     ## RETRIEVAL ##
     ###############
@@ -36,10 +44,10 @@ class Defaults(BaseSettings):
     BASE_URL_EMB: str | None = None
 
     # K-closest matches found by BM25 search
-    K_BM25: int = 5
+    K_BM25: int = 10
 
     # K-closest matches found by cosine similarity
-    K_EMB: int = 5
+    K_EMB: int = 10
 
     # Number of candidates for KNN-search in vector DB
     NUM_CANDIDATES: int = 100
@@ -61,8 +69,11 @@ class Defaults(BaseSettings):
 
     # LLM
     PROVIDER_LLM: ModelProvider = ModelProvider.OpenAI
-    MODEL_LLM: str = "gpt-4o"
+    MODEL_LLM: str = "gpt-5.6-luna"
     BASE_URL_LLM: str | None = None
+
+    # LLM call settings
+    REASONING_EFFORT: ReasoningEffort = ReasoningEffort.LOW
     TEMPERATURE: float = 0.7
 
     model_config = SettingsConfigDict(
@@ -191,7 +202,7 @@ class Config(BaseSettings):
     CONTEXT_ENABLED: bool = True
 
     # Number of latest turns to use for context (0 for unlimited)
-    CONTEXT_WINDOW_SIZE: int = 5
+    CONTEXT_WINDOW_SIZE: int = 10
 
     # Flag for saving logs from all backend services to ElasticSearch
     ES_LOGGING_ENABLED: bool = True
@@ -200,8 +211,17 @@ class Config(BaseSettings):
     ## OTHER ##
     ###########
 
+    # Flag that tells whether the old ES index name for "text-embedding-3-large" was migrated to the new name
+    # Old index name: "openai-3-large"; new index name: "text-embedding-3-large"
     MIGRATION_INDEX_NAME_DONE: bool = True
+
+    # Flag that tells whether the logging ES index was migrated based on the new index schema
+    # Old keyword func_name field: "func_name.keyword"; new field: "func_name"
     MIGRATION_LOG_INDEX_DONE: bool = True
+
+    # Flag to overwrite the default resource files (dialogue FSM, prompts) with the current
+    # version on every Kronos start (they are only created when missing otherwise)
+    OVERWRITE_DEFAULT_RESOURCES: bool = True
 
     model_config = SettingsConfigDict(
         case_sensitive=True,

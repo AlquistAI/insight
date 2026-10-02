@@ -22,10 +22,10 @@ x-variables:
   triton: &triton-image               nvcr.io/nvidia/tritonserver:24.07-py3
   vllm: &vllm-image                   nvcr.io/nvidia/vllm:25.09-py3
 
-  alchemist: &alchemist-image alchemist:latest
-  kronos: &kronos-image       kronos:latest
-  maestro: &maestro-image     maestro:latest
-  ragnarok: &ragnarok-image   ragnarok:latest
+  alchemist: &alchemist-image ${COMPOSE_PROJECT_NAME:-insight}-alchemist:latest
+  kronos: &kronos-image       ${COMPOSE_PROJECT_NAME:-insight}-kronos:latest
+  maestro: &maestro-image     ${COMPOSE_PROJECT_NAME:-insight}-maestro:latest
+  ragnarok: &ragnarok-image   ${COMPOSE_PROJECT_NAME:-insight}-ragnarok:latest
 
   # alchemist: &alchemist-image registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/alchemist:latest
   # kronos: &kronos-image       registry.gitlab.com/promethistai-projects/ciirc-projects/selfservice/insight/kronos:latest

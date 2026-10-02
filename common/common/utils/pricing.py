@@ -72,7 +72,8 @@ PRICES: dict[ModelProvider, dict[str, ModelPrice]] = {
         "gpt-5.5": ModelPrice(input=5.00, output=30.00),
         "gpt-5.6-luna": ModelPrice(input=0.20, output=1.20),
         "gpt-5.6-terra": ModelPrice(input=2.00, output=12.00),
-        "gpt-5.6-sol": ModelPrice(input=5.00, output=30.00),
+        "gpt-5.6-sol": ModelPrice(input=4.00, output=20.00),
+        "gpt-6-astra": ModelPrice(input=10.00, output=50.00),
     },
 }
 

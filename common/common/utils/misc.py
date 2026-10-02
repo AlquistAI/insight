@@ -14,7 +14,7 @@ def generate_batches(iterable, n: int = 1):
         yield iterable[ndx:min(ndx + n, ln)]
 
 
-def yield_from_with_return(gen: Generator, on_return) -> Generator:
+def yield_from_with_return(gen: Generator[Any, None, Any], on_return) -> Generator:
     """
     Yield all items of a generator and pass its return value to a callback.
 

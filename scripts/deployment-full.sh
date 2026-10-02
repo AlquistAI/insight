@@ -75,45 +75,6 @@ until curl -fs "$RAGNAROK_URL/health" > /dev/null; do
   sleep 5
 done
 
-### UPLOAD DEFAULT RESOURCE FILES IF MISSING ###
-echo "==== Uploading default dialogue/image/prompts files ===="
-
-if curl -fs "$KRONOS_URL/resources/dialogue_fsm/" -H "X-Api-Key: $KRONOS_API_KEY" > /dev/null; then
-  echo "Default dialogue FSM file already exists. Skipping."
-else
-  curl -X "POST" \
-    "$KRONOS_URL/resources/dialogue_fsm/init" \
-    -H "X-Api-Key: $KRONOS_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d '{"language": "'$DEFAULT_PROJECT_LANG'"}'
-
-  echo -e "\nDefault dialogue FSM file created."
-fi
-
-if curl -fs "$KRONOS_URL/resources/image/?resource_id=digital_theme.png" -H "X-Api-Key: $KRONOS_API_KEY" > /dev/null; then
-  echo "Default image file already exists. Skipping."
-else
-  curl -X "POST" \
-    "$KRONOS_URL/resources/image/?resource_id=digital_theme.png" \
-    -H "X-Api-Key: $KRONOS_API_KEY" \
-    -H "Content-Type: multipart/form-data" \
-    -F "file=@resources/digital_theme.png;type=image/png"
-
-  echo -e "\nDefault image file created."
-fi
-
-if curl -fs "$KRONOS_URL/resources/prompts/" -H "X-Api-Key: $KRONOS_API_KEY" > /dev/null; then
-  echo "Default prompts file already exists. Skipping."
-else
-  curl -X "POST" \
-    "$KRONOS_URL/resources/prompts/" \
-    -H "X-Api-Key: $KRONOS_API_KEY" \
-    -H "Content-Type: multipart/form-data" \
-    -F "file=@resources/prompts.md;type=text/markdown"
-
-  echo -e "\nDefault prompts file created."
-fi
-
 ### CREATE EXAMPLE PROJECT IF MISSING ###
 echo "==== Creating '$DEFAULT_PROJECT_ID' project ===="
 

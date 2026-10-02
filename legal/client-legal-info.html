@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Alquist Insight — informace pro uživatele</title>
+    <!--
+      Samostatná informační stránka pro Klienta Alquist Insight.
+      Standalone information page for the Alquist Insight Client.
+
+      Bez externích závislostí. Čeština je výchozí a je viditelná i bez JavaScriptu.
+      No external dependencies. Czech is the default and is visible without JavaScript.
+    -->
+    <style>
+        :root {
+            --bg: #ffffff;
+            --surface: #f6f7f9;
+            --border: #d9dde3;
+            --text: #1a1d21;
+            --muted: #5b6370;
+            --accent: #0b5fa5;
+            --warn-bg: #fff8e6;
+            --warn-border: #e0b750;
+            --warn-text: #6b4c00;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #15181c;
+                --surface: #1e2227;
+                --border: #333a42;
+                --text: #e8eaed;
+                --muted: #a3acb9;
+                --accent: #6cb6f5;
+                --warn-bg: #2e2712;
+                --warn-border: #8a6d1f;
+                --warn-text: #f0d68a;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0 1.25rem 4rem;
+            background: var(--bg);
+            color: var(--text);
+            font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        .wrap {
+            max-width: 45rem;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            align-items: baseline;
+            justify-content: space-between;
+            padding: 1.75rem 0 1.25rem;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 1.75rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            line-height: 1.3;
+            margin: 0;
+        }
+
+        h2 {
+            font-size: 1.15rem;
+            margin: 2.25rem 0 .6rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid var(--border);
+        }
+
+        h2:first-of-type {
+            border-top: 0;
+            padding-top: 0;
+            margin-top: 1rem;
+        }
+
+        h3 {
+            font-size: 1rem;
+            margin: 1.5rem 0 .4rem;
+        }
+
+        p, ul, dl {
+            margin: 0 0 .9rem;
+        }
+
+        ul {
+            padding-left: 1.3rem;
+        }
+
+        li {
+            margin-bottom: .35rem;
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        a:focus-visible, button:focus-visible {
+            outline: 2px solid var(--accent);
+            outline-offset: 2px;
+        }
+
+        .lang-toggle {
+            display: flex;
+            gap: .25rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: .5rem;
+            padding: .25rem;
+        }
+
+        .lang-toggle button {
+            font: inherit;
+            font-size: .875rem;
+            padding: .3rem .75rem;
+            border: 0;
+            border-radius: .35rem;
+            background: transparent;
+            color: var(--muted);
+            cursor: pointer;
+        }
+
+        .lang-toggle button[aria-pressed="true"] {
+            background: var(--bg);
+            color: var(--text);
+            font-weight: 600;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+        }
+
+        .callout {
+            background: var(--warn-bg);
+            border: 1px solid var(--warn-border);
+            color: var(--warn-text);
+            border-radius: .5rem;
+            padding: 1rem 1.15rem;
+            margin: 0 0 1.5rem;
+        }
+
+        .callout p:last-child {
+            margin-bottom: 0;
+        }
+
+        .callout strong {
+            color: inherit;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: .5rem;
+            padding: 1rem 1.15rem;
+            margin: 0 0 1.25rem;
+        }
+
+        .card p:last-child, .card ul:last-child {
+            margin-bottom: 0;
+        }
+
+        dl.kv {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: .4rem 1rem;
+        }
+
+        dl.kv dt {
+            color: var(--muted);
+        }
+
+        dl.kv dd {
+            margin: 0;
+        }
+
+        .muted {
+            color: var(--muted);
+            font-size: .9rem;
+        }
+
+        footer {
+            margin-top: 2.5rem;
+            padding-top: 1.25rem;
+            border-top: 1px solid var(--border);
+            color: var(--muted);
+            font-size: .875rem;
+        }
+
+        code {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: .25rem;
+            padding: .05em .35em;
+            font-size: .9em;
+        }
+
+        /* Language visibility is driven by data-l, NOT by the lang attribute.
+           Using [lang="en"] here would also match <html lang="en"> and hide the whole document. */
+        [data-l="en"] {
+            display: none;
+        }
+
+        html[data-lang="en"] [data-l="cs"] {
+            display: none;
+        }
+
+        html[data-lang="en"] [data-l="en"] {
+            display: block;
+        }
+
+        html[data-lang="en"] span[data-l="en"] {
+            display: inline;
+        }
+
+        @media print {
+            .lang-toggle {
+                display: none;
+            }
+
+            [data-l="en"], [data-l="cs"] {
+                display: block !important;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <header>
+        <h1>
+            <span lang="cs" data-l="cs">Alquist Insight — informace pro uživatele</span>
+            <span lang="en" data-l="en">Alquist Insight — information for users</span>
+        </h1>
+        <div class="lang-toggle" role="group" aria-label="Jazyk / Language">
+            <button type="button" data-set-lang="cs" aria-pressed="true">Čeština</button>
+            <button type="button" data-set-lang="en" aria-pressed="false">English</button>
+        </div>
+    </header>
+
+    <!-- ============================= ČESKY ============================= -->
+    <div lang="cs" data-l="cs">
+
+        <div class="callout">
+            <p><strong>Odpovídá vám systém umělé inteligence.</strong> Odpovědi generuje automaticky jazykový model a
+                před zobrazením je nekontroluje člověk. Mohou být nesprávné nebo neúplné.</p>
+            <p><strong>Vaše dotazy nemůžeme na žádost vymazat.</strong> Nevkládejte prosím do dotazu žádné osobní ani
+                důvěrné údaje — ani své, ani cizí. Proč to tak je, vysvětlujeme níže.</p>
+        </div>
+
+        <h2>Co je tato služba</h2>
+        <p>Alquist Insight odpovídá na dotazy k tématu, které zpřístupnil provozovatel této instalace: <strong>České
+            vysoké učení technické v Praze, Český institut informatiky, robotiky a kybernetiky (CIIRC ČVUT)</strong>.
+            Odpovědi vycházejí výhradně z obsahu, který provozovatel do systému vložil.</p>
+        <p>Pokud se zeptáte na něco mimo toto téma, systém odpoví, že odpověď nezná. Nebude si domýšlet — to je
+            záměrné.</p>
+        <p>Odpovědi jsou pouze informativní. <strong>Nejsou právním, lékařským, finančním ani jiným odborným
+            poradenstvím.</strong> Pro závazné vyjádření se obraťte přímo na provozovatele. Vše podstatné si ověřte u
+            oficiálního zdroje.</p>
+
+        <h2>Nepotřebujete účet</h2>
+        <p>Nemusíte se registrovat ani přihlašovat. Nežádáme vás o jméno, e-mail ani kontaktní údaje. <strong>Nezaznamenáváme
+            ani vaši IP adresu.</strong></p>
+        <p>Vašemu sezení přidělíme náhodný identifikátor, aby systém rozuměl navazujícím dotazům v kontextu. Při každém
+            novém sezení se vytvoří <strong>úplně nový identifikátor</strong> — nedokážeme vás rozpoznat jako
+            vracejícího se uživatele ani spojit dnešní dotazy s tím, na co jste se ptali dříve.</p>
+
+        <h2>Co uchováváme</h2>
+        <div class="card">
+            <ul>
+                <li>text vašeho dotazu a vygenerovanou odpověď,</li>
+                <li>časový údaj u každé zprávy,</li>
+                <li>náhodný identifikátor sezení (platný pouze po dobu jednoho sezení).</li>
+            </ul>
+        </div>
+        <p>Tyto záznamy vidí provozovatel, aby mohl sledovat provoz a kvalitu odpovědí. Uchováváme je <strong>90
+            dnů</strong> a poté se automaticky mažou. Objem uchovávaných dat je navíc omezen na nejvýše <strong>100
+            MB</strong>; při dosažení limitu se mažou nejstarší záznamy.</p>
+        <p>Nevytváříme reklamní profily, údaje neprodáváme a nedochází k žádnému automatizovanému rozhodování s právními
+            účinky pro vás.</p>
+
+        <h2>Proč nemůžeme vymazat „vaše“ dotazy</h2>
+        <p>Chceme to říci přímo, místo abychom naznačovali něco jiného.</p>
+        <p>Protože se identifikátor sezení pro každé sezení generuje znovu, není trvale uchováván a nezaznamenáváme IP
+            adresy, <strong>nedržíme nic, co by uchovaný dotaz spojovalo s konkrétní osobou</strong>. Po skončení vašeho
+            sezení neexistuje v našich systémech žádný údaj, který by vedl k vám.</p>
+        <p>Nedokážeme proto vaše dotazy najít, abychom vám je zobrazili, opravili nebo vymazali — ani když o to
+            požádáte. Nejde o neochotu; prostě nemáme podle čeho hledat. Článek 11 odst. 2 GDPR tuto situaci výslovně
+            řeší a umožňuje nám žádosti podle článků 15 až 20 odmítnout. <strong>Nebudeme vás žádat o identifikační
+                údaje jen proto, aby byla žádost proveditelná</strong> — shromažďovat o vás více údajů kvůli ochraně
+            soukromí by popíralo celý smysl tohoto návrhu.</p>
+        <p>Ochrana zde vyplývá z toho, že údaje nedržíme, nikoli ze slibu, že s nimi budeme dobře zacházet. Cenou je
+            nemožnost cíleného výmazu. Proto platí doporučení výše: <strong>nevkládejte nic, co byste později chtěli
+                odstranit.</strong></p>
+        <p>Zpracování můžete kdykoli ukončit tím, že aplikaci zavřete. Všechny záznamy se smažou automaticky po uplynutí
+            doby uchování.</p>
+
+        <h2>Komu se údaje předávají</h2>
+        <div class="card">
+            <dl class="kv">
+                <dt>OpenAI</dt>
+                <dd>generuje odpovědi z vašeho dotazu a z vyhledaných výňatků vloženého obsahu. Podle sjednaných
+                    podmínek <strong>nejsou tato data použita k trénování modelů OpenAI</strong>.
+                </dd>
+                <dt>Hetzner</dt>
+                <dd>hostuje server; infrastruktura je umístěna v Evropské unii.</dd>
+            </dl>
+        </div>
+        <p class="muted">Úplný seznam zpracovatelů, umístění a záruk pro předávání mimo EHP je uveden v informacích o
+            zpracování osobních údajů — viz odkaz v zápatí.</p>
+
+        <h2>Vaše práva a kontakt</h2>
+        <p>Máte právo na přístup, opravu, výmaz, omezení zpracování, přenositelnost a právo vznést námitku. U záznamů z
+            tohoto rozhraní platí omezení popsané výše. Máte rovněž právo podat stížnost u dozorového úřadu.</p>
+        <div class="card">
+            <dl class="kv">
+                <dt>Provozovatel</dt>
+                <dd>České vysoké učení technické v Praze,
+                    Český institut informatiky, robotiky a kybernetiky (CIIRC ČVUT),
+                    Jugoslávských partyzánů 1580/3, 160 00 Praha 6, Česká republika, IČO 68407700
+                </dd>
+                <dt>Kontakt</dt>
+                <dd><a href="mailto:secretariat@ciirc.cvut.cz">secretariat@ciirc.cvut.cz</a></dd>
+                <dt>Ochrana údajů</dt>
+                <dd><a href="mailto:dpo@cvut.cz">dpo@cvut.cz</a></dd>
+                <dt>Dozorový úřad</dt>
+                <dd>Úřad pro ochranu osobních údajů, Pplk. Sochora 27, 170 00 Praha 7 —
+                    <a href="https://uoou.gov.cz" rel="noopener">uoou.gov.cz</a></dd>
+            </dl>
+        </div>
+
+        <h2>Otevřený zdrojový kód a licence</h2>
+        <p>Alquist Insight je otevřený software šířený pod <strong>licencí MIT</strong>. Zdrojový kód klienta i serveru
+            je veřejně dostupný a můžete si jej sami spustit, upravovat nebo dále šířit.</p>
+        <div class="card">
+            <dl class="kv">
+                <dt>Licence</dt>
+                <dd><a href="https://github.com/AlquistAI/insight/blob/main/LICENSE" rel="noopener">MIT Licence</a>
+                    (závazné je anglické znění)
+                </dd>
+                <dt>Zdrojový kód</dt>
+                <dd>
+                    <a href="https://github.com/AlquistAI/insight" rel="noopener">https://github.com/AlquistAI/insight</a>
+                </dd>
+                <dt>Autorská práva</dt>
+                <dd>České vysoké učení technické v Praze, Český institut informatiky, robotiky a kybernetiky (CIIRC
+                    ČVUT) a jednotliví přispěvatelé
+                </dd>
+            </dl>
+        </div>
+        <p class="muted">Aplikaci vyvinul tým CIIRC ČVUT v Praze. Licence MIT se vztahuje na zdrojový kód; užívání této
+            hostované služby se řídí podmínkami poskytování služby, na které odkazujeme v zápatí.</p>
+
+    </div>
+
+    <!-- ============================= ENGLISH ============================= -->
+    <div lang="en" data-l="en">
+
+        <div class="callout">
+            <p><strong>You are being answered by an artificial intelligence system.</strong>Answers are generated
+                automatically by a language model and are not reviewed by a human before you see them. They may be
+                incorrect or incomplete.</p>
+            <p><strong>We cannot delete your questions on request.</strong> Please do not enter any personal or
+                confidential information into your question — neither your own nor anyone else's. We explain why below.
+            </p>
+        </div>
+
+        <h2>What this service is</h2>
+        <p>Alquist Insight answers questions about the topic made available by the operator of this installation:
+            <strong>Czech Technical University in Prague, Czech Institute of Informatics, Robotics and Cybernetics
+                (CIIRC CTU)</strong>. Answers are based solely on the content the operator has loaded into the system.
+        </p>
+        <p>If you ask about something outside that topic, the system will say that it does not know. It will not guess —
+            that is deliberate.</p>
+        <p>Answers are for information only. <strong>They are not legal, medical, financial or other professional
+            advice.</strong> For a binding statement, contact the operator directly. Verify anything important against
+            the official source.</p>
+
+        <h2>You do not need an account</h2>
+        <p>There is no registration or log-in. We do not ask for your name, e-mail or contact details. <strong>We do not
+            record your IP address either.</strong></p>
+        <p>We assign your session a random identifier so the system can understand follow-up questions in context. A
+            <strong>completely new identifier is created for every new session</strong> — we cannot recognize you as a
+            returning user or connect today's questions to anything you asked before.</p>
+
+        <h2>What we store</h2>
+        <div class="card">
+            <ul>
+                <li>the text of your question and the generated answer,</li>
+                <li>a timestamp for each message,</li>
+                <li>the random session identifier (valid only for that one session).</li>
+            </ul>
+        </div>
+        <p>The operator can see these records in order to monitor traffic and answer quality. We keep them for <strong>90
+            days</strong>, after which they are deleted automatically. The total volume of stored data is additionally
+            capped at no more than <strong>100 MB</strong>; when the cap is reached, the oldest records are deleted
+            first.</p>
+        <p>We do not build advertising profiles, we do not sell data, and no automated decision-making with legal
+            effects for you takes place.</p>
+
+        <h2>Why we cannot delete "your" questions</h2>
+        <p>We want to state this directly rather than imply otherwise.</p>
+        <p>Because the session identifier is regenerated for every session, is not retained, and we record no IP
+            addresses, <strong>we hold nothing that connects a stored question to any person</strong>. Once your session
+            ends, there is nothing in our systems that points to you.</p>
+        <p>We therefore cannot find your questions in order to show them to you, correct them or erase them — even if
+            you ask us to. This is not unwillingness; we simply have nothing to search by. Article 11(2) GDPR addresses
+            this situation expressly and permits us to decline requests under Articles 15 to 20. <strong>We will not ask
+                you for identifying information merely to make such a request possible</strong> — collecting more data
+            about you in the name of privacy would defeat the whole point of the design.</p>
+        <p>The protection here comes from us not holding the data, rather than from a promise to handle it well. The
+            cost is the loss of targeted erasure. Hence, the advice above: <strong>do not enter anything you might later
+                want removed.</strong></p>
+        <p>You can stop the processing at any time by closing the application. All records are deleted automatically
+            once the retention period expires.</p>
+
+        <h2>Who receives the data</h2>
+        <div class="card">
+            <dl class="kv">
+                <dt>OpenAI</dt>
+                <dd>generates answers from your question and from retrieved extracts of the loaded content. Under the
+                    agreed terms, this data is <strong>not used to train OpenAI's models</strong>.
+                </dd>
+                <dt>Hetzner</dt>
+                <dd>hosts the server; the infrastructure is located in the European Union.</dd>
+            </dl>
+        </div>
+        <p class="muted">The full list of processors, their locations and the safeguards for transfers outside the EEA
+            is in the privacy notice — see the footer.</p>
+
+        <h2>Your rights and contact</h2>
+        <p>You have the right of access, rectification, erasure, restriction, portability, and the right to object. For
+            records from this interface, the limitation described above applies. You also have the right to lodge a
+            complaint with a supervisory authority.</p>
+        <div class="card">
+            <dl class="kv">
+                <dt>Operator</dt>
+                <dd>Czech Technical University in Prague,
+                    Czech Institute of Informatics, Robotics and Cybernetics (CIIRC CTU),
+                    Jugoslávských partyzánů 1580/3, 160 00 Praha 6, Czech Republic, IČO 68407700
+                </dd>
+                <dt>Contact</dt>
+                <dd><a href="mailto:secretariat@ciirc.cvut.cz">secretariat@ciirc.cvut.cz</a></dd>
+                <dt>Data protection</dt>
+                <dd><a href="mailto:dpo@cvut.cz">dpo@cvut.cz</a></dd>
+                <dt>Supervisory authority</dt>
+                <dd>Office for Personal Data Protection, Pplk. Sochora 27, 170 00 Prague 7, Czech Republic —
+                    <a href="https://uoou.gov.cz" rel="noopener">uoou.gov.cz</a></dd>
+            </dl>
+        </div>
+
+        <h2>Open source and license</h2>
+        <p>Alquist Insight is open-source software distributed under the <strong>MIT license</strong>. The source codes
+            of both the client and the server are publicly available, and you may run it yourself, modify it or
+            redistribute it.</p>
+        <div class="card">
+            <dl class="kv">
+                <dt>Licence</dt>
+                <dd><a href="https://github.com/AlquistAI/insight/blob/main/LICENSE" rel="noopener">MIT License</a> (the
+                    English text is the binding one)
+                </dd>
+                <dt>Source code</dt>
+                <dd>
+                    <a href="https://github.com/AlquistAI/insight" rel="noopener">https://github.com/AlquistAI/insight</a>
+                </dd>
+                <dt>Copyright</dt>
+                <dd>Czech Technical University in Prague, Czech Institute of Informatics, Robotics and Cybernetics
+                    (CIIRC CTU) and the individual contributors
+                </dd>
+            </dl>
+        </div>
+        <p class="muted">Developed by the team at CIIRC CTU in Prague. The MIT license covers the source code; use of
+            this hosted service is governed by the terms of service linked in the footer.</p>
+
+    </div>
+
+    <footer>
+        <p lang="cs" data-l="cs">
+            <a href="https://github.com/AlquistAI/insight/blob/main/legal/PRIVACY-NOTICE-cz.md">Informace o zpracování
+                osobních údajů</a> ·
+            <a href="https://github.com/AlquistAI/insight/blob/main/legal/EULA-cz.md">Podmínky poskytování služby</a> ·
+            <a href="https://github.com/AlquistAI/insight" rel="noopener">Zdrojový kód</a><br>
+            Verze 1.0, 1. října 2026
+        </p>
+        <p lang="en" data-l="en">
+            <a href="https://github.com/AlquistAI/insight/blob/main/legal/PRIVACY-NOTICE.md">Privacy notice</a> ·
+            <a href="https://github.com/AlquistAI/insight/blob/main/legal/EULA.md">Terms of service</a> ·
+            <a href="https://github.com/AlquistAI/insight" rel="noopener">Source code</a><br>
+            Version 1.0, 1 October 2026
+        </p>
+    </footer>
+
+</div>
+
+<script>
+    // Progressive enhancement only: Czech is visible by default without JS.
+    (function () {
+        var html = document.documentElement;
+        var buttons = document.querySelectorAll('[data-set-lang]');
+
+        function setLang(lang) {
+            html.setAttribute('data-lang', lang);
+            html.setAttribute('lang', lang);
+            buttons.forEach(function (b) {
+                b.setAttribute('aria-pressed', String(b.dataset.setLang === lang));
+            });
+            try {
+                localStorage.setItem('ai-legal-lang', lang);
+            } catch (e) {
+            }
+        }
+
+        buttons.forEach(function (b) {
+            b.addEventListener('click', function () {
+                setLang(b.dataset.setLang);
+            });
+        });
+
+        var stored = null;
+        try {
+            stored = localStorage.getItem('ai-legal-lang');
+        } catch (e) {
+        }
+        if (stored === 'en' || stored === 'cs') {
+            setLang(stored);
+        } else if ((navigator.language || '').slice(0, 2).toLowerCase() !== 'cs') {
+            setLang('en');
+        } else {
+            setLang('cs');
+        }
+    })();
+</script>
+
+</body>
+</html>

@@ -13,7 +13,7 @@ from pydantic import Field
 
 from common.config import DF
 from common.models.base import CustomBaseModel
-from common.models.enums import ModelProvider
+from common.models.enums import ModelProvider, ReasoningEffort
 
 
 #################
@@ -37,6 +37,13 @@ class GenerativeModelSettings(CustomBaseModel):
     base_url: str | None = DF.BASE_URL_LLM
 
 
+class QueryRewriteSettings(CustomBaseModel):
+    model: GenerativeModelSettings = Field(default_factory=GenerativeModelSettings)
+
+    reasoning_effort: ReasoningEffort = DF.REASONING_EFFORT_REWRITE
+    temperature: float = DF.TEMPERATURE_REWRITE
+
+
 class RetrievalSettings(CustomBaseModel):
     model: EmbeddingModelSettings = Field(default_factory=EmbeddingModelSettings)
 
@@ -56,10 +63,12 @@ class GenerationSettings(CustomBaseModel):
     enabled: bool = True
     model: GenerativeModelSettings = Field(default_factory=GenerativeModelSettings)
 
+    reasoning_effort: ReasoningEffort = DF.REASONING_EFFORT
     temperature: float = DF.TEMPERATURE
 
 
 class AISettings(CustomBaseModel):
+    query_rewrite: QueryRewriteSettings = Field(default_factory=QueryRewriteSettings)
     retrieval: RetrievalSettings = Field(default_factory=RetrievalSettings)
     reranking: RerankingSettings = Field(default_factory=RerankingSettings)
     generation: GenerationSettings = Field(default_factory=GenerationSettings)

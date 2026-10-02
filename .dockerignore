@@ -42,6 +42,12 @@
 !/ragnarok/run.py
 !/ragnarok/start.sh
 
+# Default resource files created by the Kronos prestart script
+!/resources/
+/resources/*
+!/resources/default.png
+!/resources/prompts.md
+
 # Ignore unnecessary files inside allowed directories
 **/__pycache__/
 **/.DS_Store

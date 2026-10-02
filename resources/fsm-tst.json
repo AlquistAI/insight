@@ -8,7 +8,7 @@
       "state_id": 1,
       "command": {
         "type": "image",
-        "text": "digital_theme.png",
+        "text": "default.png",
         "link": "strada",
         "next_state": 111
       }

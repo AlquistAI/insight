@@ -172,8 +172,6 @@ def query_rag(
         project_id: str,
         query: str,
         kb_ids: list[str] | None = None,
-        k_emb: int = 5,
-        k_bm25: int = 5,
         lang: str | None = None,
         return_highlights: bool = False,
         return_matched_chunks: bool = True,
@@ -186,8 +184,6 @@ def query_rag(
     :param project_id: project ID
     :param query: user query
     :param kb_ids: knowledge base IDs to include (null/empty for all project documents)
-    :param k_emb: number of matches to get using the cosine similarity
-    :param k_bm25: number of matches using the text/BM25 search
     :param lang: language to use (uses project language if None)
     :param return_highlights: return data for source snippet highlighting
     :param return_matched_chunks: return matched chunks/documents in the response
@@ -199,9 +195,6 @@ def query_rag(
     data = {
         "query": query,
         "kb_ids": kb_ids,
-        # FixMe: This can be re-enabled after it is implemented in Kronos.
-        # "k_emb": k_emb,
-        # "k_bm25": k_bm25,
         "lang": lang,
         "return_highlights": return_highlights,
         "return_matched_chunks": return_matched_chunks,
@@ -256,8 +249,6 @@ def query_rag(
 async def query_rag_top_n(
         project_id: str,
         query: str,
-        k_emb: int = 20,
-        k_bm25: int = 20,
         lang: str | None = None,
         return_highlights: bool = False,
         return_matched_chunks: bool = True,
@@ -269,8 +260,6 @@ async def query_rag_top_n(
 
     :param project_id: project ID
     :param query: user query
-    :param k_emb: number of matches to get using the cosine similarity
-    :param k_bm25: number of matches using the text/BM25 search
     :param lang: language to use (uses project language if None)
     :param return_highlights: return data for source snippet highlighting
     :param return_matched_chunks: return matched chunks/documents in the response
@@ -281,10 +270,6 @@ async def query_rag_top_n(
 
     data = {
         "query": query,
-        "model_name_llm": None,
-        # FixMe: This can be re-enabled after it is implemented in Kronos.
-        # "k_emb": k_emb,
-        # "k_bm25": k_bm25,
         "lang": lang,
         "return_highlights": return_highlights,
         "return_matched_chunks": return_matched_chunks,

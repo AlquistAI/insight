@@ -17,6 +17,7 @@ DEFAULT_QA_ID = 0
 DEFAULT_QA_NAME = "default_qa"
 DEFAULT_QA_AUTHOR = "ella.brichova@cvut.cz"
 DEFAULT_QA_DESCRIPTION = "Default dialogue implementing simple question-answering from the uploaded knowledge base."
+DEFAULT_QA_WELCOME_IMAGE = "default.png"
 
 DEFAULTS_QA_CS = {
     "editor_initial_file": (
@@ -26,7 +27,6 @@ DEFAULTS_QA_CS = {
         "<li>Nemohu tedy zpracovávat informace mimo ty v poskytnutém kontextu nebo znalosti po říjnu 2023.</li></ul>"
     ),
     "query_prompt": "Zadej dotaz",
-    "welcome_image": "digital_theme.png",
     "welcome_message": (
         "## Vítejte v aplikaci Alquist Insight!\n"
         "- Po otevření aplikace klikněte na ikonku 'ZDROJE' vpravo nahoře a vyberte soubory, ve kterých se bude "
@@ -49,7 +49,6 @@ DEFAULTS_QA_EN = {
         "<li>I cannot process information not provided in the context.</li></ul>"
     ),
     "query_prompt": "Submit your query",
-    "welcome_image": "digital_theme.png",
     "welcome_message": (
         "## Welcome to the Alquist Insight bot!\n"
         "- After opening the app, you can click the 'KNOWLEDGE BASE' icon on the top right and choose the files that "
@@ -89,7 +88,7 @@ def build_qa(data: fsm.DialogueInit | None = None) -> fsm.Dialogue:
     s_welcome_image = fsm.State(
         state_id=DEFAULT_QA_STATE_WELCOME_IMAGE,
         command=fsm.ImageCommand(
-            text=data.welcome_image or defaults["welcome_image"],
+            text=data.welcome_image or DEFAULT_QA_WELCOME_IMAGE,
             next_state=DEFAULT_QA_STATE_WELCOME_MESSAGE,
         ),
     )

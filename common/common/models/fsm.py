@@ -52,10 +52,9 @@ class RAGCommand(_CommandBase):
     type: Literal["get_rag", "get_top_n"] = "get_rag"
 
     text: str
-    streaming: bool = True
 
     top_n_buttons_enabled: bool = True
-    top_n_count: int = 5
+    streaming: bool = True
 
 
 class SelectIntentCommand(_CommandBase):

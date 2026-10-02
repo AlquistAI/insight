@@ -26,6 +26,7 @@ Key technical specs:
     - [RAG Pipeline](#rag-pipeline)
     - [External Services](#external-services)
     - [Repository Layout](#repository-layout)
+    - [Default Resource Files](#default-resource-files)
 - [Local Docker Deployment](#local-docker-deployment)
     - [Stopping, Restarting and Resetting](#stopping-restarting-and-resetting)
 - [Configuration](#configuration)
@@ -47,6 +48,9 @@ Key technical specs:
     - [Code Conventions](#code-conventions)
 - [Helper Scripts](#helper-scripts)
 - [Troubleshooting](#troubleshooting)
+- [Licensing and Legal Documents](#licensing-and-legal-documents)
+    - [Language Versions and Precedence](#language-versions-and-precedence)
+    - [The Two-Layer Model](#the-two-layer-model)
 
 ## Architecture
 
@@ -121,6 +125,7 @@ Azure Blob Storage can be used instead of MinIO (`STORAGE_TYPE=AZURE_BLOB_STORAG
 alchemist/          # Alchemist app (Dockerfile, Pipfile, run.py, start.sh)
 common/common/      # Shared module imported by all apps
 kronos/             # Kronos app
+legal/              # License, EULA, privacy notice & co. (EN + CZ), client legal info page
 maestro/            # Maestro app
 ragnarok/           # Ragnarok app
 resources/          # Default resource files: FSM dialogues, images, prompts.md
@@ -128,8 +133,29 @@ scripts/            # Deployment and maintenance scripts
 config.env          # Committed config template with safe defaults (NO SECRETS)
 config.local.env    # Local secrets & overrides (gitignored, not committed)
 docker-compose.yaml # Full local deployment
+LICENSE             # MIT license (symlinked from legal/LICENSE)
 Pipfile             # Convenience union of all app dependencies for local development
 ```
+
+### Default Resource Files
+
+The default (project independent) resource files are created in the storage by the Kronos prestart script
+(`kronos/kronos/prestart.py`) before every Kronos start. The files they are created from live in the `resources`
+folder, which is copied into the Kronos image (the individual files needed are listed in `.dockerignore`):
+
+| Resource       | Created from                           | Created                                          |
+|----------------|----------------------------------------|--------------------------------------------------|
+| `dialogue_fsm` | built by `common.utils.fsm.build_qa()` | when missing, or on every start (see flag below) |
+| `image`        | `resources/default.png`                | only when missing                                |
+| `prompts`      | `resources/prompts.md`                 | when missing, or on every start (see flag below) |
+
+`OVERWRITE_DEFAULT_RESOURCES` (`true` by default) makes Kronos replace the stored default dialogue FSM and prompts
+files with the current version on every start. Set it to `false` to keep default files edited through the Admin
+console/API — they are then only created when missing. The default image is always uploaded only once, so it can be
+freely replaced.
+
+Project-specific resource files are never touched and always take precedence over the default ones. Images live in an
+`images` folder — inside the project folder for project-specific images, in the storage root for the default ones.
 
 ## Local Docker Deployment
 
@@ -193,10 +219,12 @@ The script will:
     - The script does not wait for the vLLM generation model to be ready, since it can take longer and the model is not
       required for finishing the initial setup. However, you should wait for it to be ready before interacting with the
       chatbot UI. You can check the status of all Docker containers using the `docker ps` command.
-6. Upload the default resource files (dialogue FSM, image, prompts) to Kronos.
-7. Create the default "test" project and upload the Alquist Insight docs as its knowledge base.
+6. Create the default "test" project and upload the Alquist Insight docs as its knowledge base.
 
 The script is idempotent — every step checks whether it has already been completed and is skipped if so.
+
+The default resource files (dialogue FSM, image, prompts) are not uploaded by the script — Kronos creates them
+in the storage on every start, see [Default Resource Files](#default-resource-files).
 
 After the script finishes execution, you should be able to open the chatbot with the default "test" project in your
 browser at `http://localhost:8020/`. Note that the generation model can still take some time to load.
@@ -321,9 +349,7 @@ Feature flags and default models:
 # send the conversation history to the LLM
 CONTEXT_ENABLED=false
 # number of latest turns used as context (0 = unlimited)
-CONTEXT_WINDOW_SIZE=5
-# ship logs of all backend services to Elasticsearch
-ES_LOGGING_ENABLED=false
+CONTEXT_WINDOW_SIZE=10
 
 DEFAULT_LANG=en-US
 DEFAULT_PROVIDER_EMB=vLLM
@@ -353,7 +379,7 @@ The following secrets have no usable default and should always be set in `config
     DEFAULT_BASE_URL_EMB=None
 
     DEFAULT_PROVIDER_LLM=OpenAI
-    DEFAULT_MODEL_LLM=gpt-4o
+    DEFAULT_MODEL_LLM=gpt-5.6-luna
     DEFAULT_BASE_URL_LLM=None
     ```
 
@@ -874,7 +900,8 @@ This section describes the recommended way how to work with this monorepo in the
   request/response models live in `common/common/models/api_{kronos,maestro,ragnarok}.py`.
 - **Persisted Mongo models** (project, session, turn, knowledge_base) carry a `model_version` (`VER_*` constant).
   Bumping a model means adding a migration branch in `kronos/kronos/prestart.py`, which runs under a Mongo lock before
-  Kronos starts.
+  Kronos starts. The same script also creates the default resource files, see
+  [Default Resource Files](#default-resource-files).
 - **Logging:** get the logger with `common.core.get_component_logger()`; never instantiate one. Structured fields go in
   `extra={...}`. Each app sets up its component logger in its `__init__.py`.
 - **Singletons / factories** use the `Singleton` / `SingletonABC` metaclass from `common.utils.singleton` (identity
@@ -915,3 +942,44 @@ This section describes the recommended way how to work with this monorepo in the
 - **A frontend change is not visible after a restart** — the client tarball is only downloaded when missing; see
   [Updating the Frontend Version](#updating-the-frontend-version).
 - **Port is already allocated** — see [Changing Service Ports](#changing-service-ports).
+
+## Licensing and Legal Documents
+
+The `legal` folder holds the license and the legal documents of Alquist Insight. Each document comes in an English and a
+Czech version (the Czech one has a `-cz` suffix):
+
+| File                | Czech version          | What it covers                                                                                                                       | Who it binds                                        |
+|---------------------|------------------------|--------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------|
+| `LICENSE`           | `LICENSE-cz`           | MIT license for the published source code of the client apps and the server                                                          | anyone who obtains the code, including self-hosters |
+| `AUTHORS.md`        | `AUTHORS-cz.md`        | Copyright holder, contributor credits, third-party components                                                                        | –                                                   |
+| `EULA.md`           | `EULA-cz.md`           | Terms of the **hosted service**: AI transparency, acceptable use, IP, liability, Customer (Admin console) & anonymous End User terms | Provider ↔ Customers ↔ End Users                    |
+| `PRIVACY-NOTICE.md` | `PRIVACY-NOTICE-cz.md` | GDPR Art. 13/14 information: processed data, legal bases, sub-processors, transfers, retention, data subject rights                  | – (informational, part of the EULA)                 |
+
+`legal/LICENSE` is only a symlink to the `LICENSE` file in the repository root, which is where GitHub looks for it to
+show the license in its repository UI. Always edit the root file.
+
+`legal/client-legal-info.html` is a standalone, dependency-free information page for the users of the chatbot client.
+It summarizes the important points of the EULA and the privacy notice in plain language (AI-generated answers, what is
+stored and for how long, why anonymous queries cannot be deleted on request, sub-processors, contacts). It is in both
+languages, with Czech as the default and a language toggle. Its footer links to the privacy notice, the EULA and the
+source code in the public GitHub repository, so the `legal` files must not be renamed or moved without updating these
+links.
+
+### Language Versions and Precedence
+
+- **MIT license:** only the **English** text (`LICENSE`) is legally operative. This is standard practice for
+  open-source licenses — a translation risks unintentionally altering the scope of the grant. `LICENSE-cz` is
+  informational only.
+- **EULA and privacy notice:** the **Czech** version prevails for consumers habitually resident in the Czech Republic
+  and for Customers established there, the English one prevails otherwise (see EULA clause 9.5).
+
+Both language versions must be kept in step — make every substantive change in both files at once (and in the matching
+parts of `client-legal-info.html`).
+
+### The Two-Layer Model
+
+The code is MIT-licensed and imposes no conditions beyond attribution. The EULA and the privacy notice govern only the
+**service operated by the Provider** (CIIRC CTU) — they cannot and do not add restrictions to the open-source grant.
+Anyone who clones the repository and runs their own instance is bound by `LICENSE` only, and becomes the controller of
+their own deployment's data. The EULA, the privacy notice and `client-legal-info.html` describe the Provider's hosted
+service (operator, sub-processors, retention periods), so self-hosters should replace them with their own documents.

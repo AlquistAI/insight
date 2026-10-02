@@ -42,5 +42,8 @@ COPY --chown=999:999 common/common ./common
 COPY --chown=999:999 kronos ./
 RUN chmod +x start.sh
 
+# Copy the default resource files (uploaded to the storage by prestart.py)
+COPY --chown=999:999 resources ./resources
+
 CMD ["./start.sh"]
 EXPOSE 9625

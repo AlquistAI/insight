@@ -22,11 +22,15 @@ LANG_CODE_TO_NAME = {
     "en-US": "English",
 }
 
-# Prompt definitions in the "prompts.md" resource file: a level-2 Markdown heading holding the prompt
-# name, followed by a fenced code block with the prompt template. Sections of the headings that do not
-# hold a known prompt name are human-readable comments and are ignored.
+# Prompt definitions in the "prompts.md" resource file: a level-2 Markdown heading holding the prompt name, followed by
+# a fenced code block with the prompt template. Sections of the headings that do not hold a known prompt name are
+# human-readable comments and are ignored.
 RE_HEADING = re.compile(r"^##[ \t]+(?P<name>[^\n]+?)[ \t]*$", re.MULTILINE)
 RE_PROMPT_TEMPLATE = re.compile(r"^```[^\n]*\n(?P<template>.*?)^```[ \t]*$", re.DOTALL | re.MULTILINE)
+
+# Tag wrapping a single retrieved document (chunk) in the context of the RAG prompt, so that the model can tell where
+# one document ends and the next one starts. Deliberately not numbered - the answer must not reference the documents.
+TAG_DOCUMENT = "DOCUMENT"
 
 
 #############
@@ -95,13 +99,17 @@ def build_prompt_rag(prompt: str, kb_documents: list[str], lang: str = DF.LANG) 
     """
     Build LLM prompt for general RAG.
 
+    Each document is wrapped in a `TAG_DOCUMENT` tag to keep the individual documents separated -
+    the retrieved chunks are independent excerpts of several files, not one continuous text.
+
     :param prompt: RAG prompt template
     :param kb_documents: list of retrieved knowledge base documents
     :param lang: conversation language
     :return: general LLM prompt
     """
 
-    return prompt.format(context="\n\n".join(kb_documents), language=get_language_name(lang))
+    context = "\n\n".join(f"<{TAG_DOCUMENT}>\n{doc.strip()}\n</{TAG_DOCUMENT}>" for doc in kb_documents)
+    return prompt.format(context=context, language=get_language_name(lang))
 
 
 def build_prompt_rewrite(prompt: str, lang: str = DF.LANG) -> str:

@@ -29,9 +29,7 @@ class QueryPayload(CustomBaseModel):
 
     query: str
     kb_ids: list[str] = Field(default_factory=list)
-
     lang: str | None = None
-    top_n_count: int = 5
 
     return_highlights: bool = False
     return_matched_chunks: bool = True

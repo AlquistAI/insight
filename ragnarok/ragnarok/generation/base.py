@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 from typing import Generator
 
 from common.config import DF
-from common.models.enums import ModelProvider
+from common.models.enums import ModelProvider, ReasoningEffort
 from common.models.usage import ModelUsage
 from common.utils.singleton import SingletonABC
 
@@ -28,12 +28,14 @@ class LLMBase(ABC, metaclass=SingletonABC):
             self,
             messages: list[dict[str, str]],
             temperature: float = DF.TEMPERATURE,
+            reasoning_effort: ReasoningEffort | None = None,
     ) -> tuple[str, ModelUsage | None]:
         """
         Generate chat completion response based on the input messages.
 
         :param messages: chat messages
         :param temperature: generation temperature
+        :param reasoning_effort: reasoning effort of the call (None for the model default)
         :return: response string, token usage & cost of the call (None if not reported by the model)
         """
         raise NotImplementedError
@@ -43,6 +45,7 @@ class LLMBase(ABC, metaclass=SingletonABC):
             self,
             messages: list[dict[str, str]],
             temperature: float = DF.TEMPERATURE,
+            reasoning_effort: ReasoningEffort | None = None,
     ) -> Generator[str, None, ModelUsage | None]:
         """
         Stream chat completion response based on the input messages.
@@ -53,6 +56,7 @@ class LLMBase(ABC, metaclass=SingletonABC):
 
         :param messages: chat messages
         :param temperature: generation temperature
+        :param reasoning_effort: reasoning effort of the call (None for the model default)
         :return: response generator returning the token usage & cost of the call
         """
         raise NotImplementedError

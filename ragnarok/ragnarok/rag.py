@@ -11,10 +11,9 @@ from typing import Generator
 
 import numpy as np
 
-from common.config import DF
 from common.models import elastic as me
 from common.models.enums import RAGStep
-from common.models.rag import AISettings, ConversationTurn, EmbeddingModelSettings, RAGOptions
+from common.models.rag import ConversationTurn, EmbeddingModelSettings, RAGOptions
 from common.models.usage import ModelUsage
 from common.services import kronos
 from common.utils.misc import yield_from_with_return
@@ -69,7 +68,7 @@ def rag(
         history_messages=history_messages,
         prompt=prompts.query_rewrite,
         lang=opts.lang,
-        settings=opts.ai_settings.generation.model,
+        settings=opts.ai_settings.query_rewrite,
     )
 
     usage.add(usage_rewrite, step=RAGStep.QUERY_REWRITE)
@@ -115,11 +114,19 @@ def rag(
 
         if opts.stream:
             gen_res = yield_from_with_return(
-                gen=model.chat_completion_stream(messages=messages, temperature=sg.temperature),
+                gen=model.chat_completion_stream(
+                    messages=messages,
+                    temperature=sg.temperature,
+                    reasoning_effort=sg.reasoning_effort,
+                ),
                 on_return=lambda u: usage.add(u, step=RAGStep.GENERATION),
             )
         else:
-            gen_res, usage_gen = model.chat_completion(messages=messages, temperature=sg.temperature)
+            gen_res, usage_gen = model.chat_completion(
+                messages=messages,
+                temperature=sg.temperature,
+                reasoning_effort=sg.reasoning_effort,
+            )
             usage.add(usage_gen, step=RAGStep.GENERATION)
     else:
         gen_res = None

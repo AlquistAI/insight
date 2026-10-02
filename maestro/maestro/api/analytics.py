@@ -12,14 +12,17 @@ from datetime import date
 
 from fastapi import Query, status
 from fastapi.exceptions import HTTPException
+from fastapi.param_functions import Depends
 from fastapi.routing import APIRouter
 
+from common.api.security_apikey import verify_apikey
 from common.config import CONFIG
 from common.services import elastic
 from common.utils.api import error_handler
 from maestro.utils import analytics as ua
 
 router = APIRouter()
+dep = [Depends(verify_apikey)]
 es_client = elastic.get_client()
 
 
@@ -252,6 +255,7 @@ def get_project_stats_timerange_summary(
 
 @router.get(
     "/debug_latest_logs",
+    dependencies=dep,
     status_code=status.HTTP_200_OK,
     summary="Get latest ElasticSearch logs for debugging",
 )

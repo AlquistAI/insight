@@ -95,8 +95,8 @@ class MinioStorage(StorageBase):
 
         return len(delete_object_list) - len(errors)
 
-    def list_files(self, prefix: str = f"{CONFIG.STORAGE_PREFIX}/") -> list[str]:
-        prefix = f"{prefix.rstrip('/')}/".lstrip("/")
+    def list_files(self, prefix: str = f"{CONFIG.STORAGE_PREFIX}/", as_folder: bool = True) -> list[str]:
+        prefix = f"{prefix.rstrip('/')}/".lstrip("/") if as_folder else prefix.lstrip("/")
         logger.debug("Listing all files in bucket %s with prefix %s", self.bucket_name, prefix)
 
         client = self._get_client()

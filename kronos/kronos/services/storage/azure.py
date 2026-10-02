@@ -67,8 +67,8 @@ class AzureStorage(StorageBase):
 
         return len(blob_names)
 
-    def list_files(self, prefix: str = f"{CONFIG.STORAGE_PREFIX}/") -> list[str]:
-        prefix = f"{prefix.rstrip('/')}/".lstrip("/")
+    def list_files(self, prefix: str = f"{CONFIG.STORAGE_PREFIX}/", as_folder: bool = True) -> list[str]:
+        prefix = f"{prefix.rstrip('/')}/".lstrip("/") if as_folder else prefix.lstrip("/")
         logger.debug("Listing all files in container %s with prefix %s", self.container_name, prefix)
         blob_names = [x["name"] for x in self.container_client.list_blobs(name_starts_with=prefix)]
         return sorted(blob_names)

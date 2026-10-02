@@ -81,7 +81,6 @@ async def get_resource(
     Get resource file based on resource type.
 
     Available resource types:
-      - chatbot_html - HTML source for chatbot
       - dialogue_fsm - FSM file specifying the dialogue
       - image - image file used as a static resource
 
@@ -92,8 +91,8 @@ async def get_resource(
 
     The files are searched in the storage in this order:
       - resource specific (resource folder)
-      - project specific (project folder)
-      - default file (kronos folder)
+      - project specific (project folder, `images` subfolder for images)
+      - default file (kronos folder, `images` subfolder for images)
 
     :param resource_type: type of the resource
     :param resource_id: ID or (file)name of the resource

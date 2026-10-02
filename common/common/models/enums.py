@@ -36,6 +36,24 @@ class RAGStep(str, Enum):
     RETRIEVAL = "retrieval"
 
 
+@unique
+class ReasoningEffort(str, Enum):
+    """
+    Reasoning effort of a generative model call, ordered from the lowest to the highest one.
+
+    Not all models support all the levels - the effort is validated against the selected model before the call
+    (see `ragnarok.generation.openai_llm.OpenAILLM._validate_reasoning_effort`).
+    """
+
+    NONE = "none"
+    MINIMAL = "minimal"
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    XHIGH = "xhigh"
+    MAX = "max"
+
+
 ############
 ## CONFIG ##
 ############
@@ -97,7 +115,6 @@ class Coll(str, Enum):
 class ResourceType(str, Enum):
     """Types of resources saved in the storage."""
 
-    CHATBOT_HTML = "chatbot_html"
     DIALOGUE_FSM = "dialogue_fsm"
     IMAGE = "image"
     PROMPTS = "prompts"
@@ -123,7 +140,6 @@ class SourceType(str, Enum):
 
 
 RESOURCE_TO_MIME = {
-    ResourceType.CHATBOT_HTML: "text/html",
     ResourceType.DIALOGUE_FSM: "application/json",
     ResourceType.IMAGE: "application/octet-stream",
     ResourceType.PROMPTS: "text/markdown",

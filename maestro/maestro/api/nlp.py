@@ -9,9 +9,11 @@
 from typing import Any
 
 from fastapi import status
+from fastapi.param_functions import Depends
 from fastapi.responses import StreamingResponse
 from fastapi.routing import APIRouter
 
+from common.api.security_apikey import verify_apikey
 from common.core import get_component_logger
 from common.models import api_maestro as mam
 from common.services import kronos, ragnarok
@@ -19,6 +21,7 @@ from common.utils.api import error_handler_async
 
 logger = get_component_logger()
 router = APIRouter()
+dep = [Depends(verify_apikey)]
 
 
 @router.post(
@@ -50,8 +53,6 @@ async def ask_question_top_n(
         session_id=session_id,
         user_id=user_id,
         query=payload.query,
-        k_emb=payload.top_n_count,
-        k_bm25=payload.top_n_count,
         lang=payload.lang,
         return_highlights=payload.return_highlights,
         return_matched_chunks=payload.return_matched_chunks,
@@ -89,8 +90,6 @@ async def ask_question(
             user_id=user_id,
             query=payload.query,
             kb_ids=payload.kb_ids,
-            k_emb=payload.top_n_count,
-            k_bm25=payload.top_n_count,
             lang=payload.lang,
             return_highlights=payload.return_highlights,
             return_matched_chunks=payload.return_matched_chunks,
@@ -101,6 +100,7 @@ async def ask_question(
 
 @router.post(
     "/projects/{project_id}/query/rag/highlights",
+    dependencies=dep,
     response_model=dict[str, Any],
     status_code=status.HTTP_200_OK,
     summary="Fetch highlight group for a single matched hit",

@@ -16,7 +16,7 @@ from common.models.base import CustomBaseModel
 from common.models.rag import AISettings
 from common.models.validation import Language, MongoID, object_id_str, utc_now
 
-_T_VER_PROJECTS = Literal[4]
+_T_VER_PROJECTS = Literal[6]
 VER_PROJECTS = get_args(_T_VER_PROJECTS)[0]
 
 
